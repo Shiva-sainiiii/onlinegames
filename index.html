@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
-<title>Tic Tac Toe — Play with Friends</title>
-<meta name="description" content="Peer-to-peer Tic Tac Toe. No signup, no server. Share a code, play instantly." />
+<title>Play with Friends — Tic Tac Toe & Chess</title>
+<meta name="description" content="Peer-to-peer Tic Tac Toe and Chess. No signup, no server. Share a code, play instantly." />
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/chess.js@1.0.0-beta.8/dist/chess.min.js"></script>
 <style>
   :root{
     --bg: #0B0E14;
@@ -20,6 +21,14 @@
     --amber: #FFB84C;
     --win: #6BFFB0;
     --radius: 18px;
+
+    /* chess-specific */
+    --sq-light: #1B2130;
+    --sq-dark: #12161F;
+    --sq-sel: rgba(255, 184, 76, 0.35);
+    --sq-move: rgba(107, 255, 176, 0.28);
+    --sq-check: rgba(255, 107, 107, 0.4);
+    --sq-last: rgba(76, 211, 255, 0.18);
   }
 
   * { box-sizing: border-box; }
@@ -59,7 +68,7 @@
   .brand h1 {
     font-family: 'Georgia', serif;
     font-weight: 700;
-    font-size: 22px;
+    font-size: 21px;
     letter-spacing: -0.02em;
     margin: 0;
   }
@@ -97,6 +106,29 @@
   /* ---------- Screens ---------- */
   .screen { display: none; flex: 1; flex-direction: column; }
   .screen.active { display: flex; }
+
+  /* ---- Game picker ---- */
+  #picker { justify-content: center; gap: 14px; }
+  .picker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .game-tile {
+    background: var(--bg-raised);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 14px;
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s ease, transform 0.12s ease;
+  }
+  .game-tile:active { transform: scale(0.96); }
+  .game-tile.selected { border-color: var(--x-color); box-shadow: 0 0 0 3px var(--x-glow); }
+  .game-tile .icon { font-size: 34px; margin-bottom: 8px; line-height: 1; }
+  .game-tile .label { font-size: 13px; font-weight: 700; }
+  .game-tile .sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 
   /* ---- Lobby ---- */
   #lobby { justify-content: center; gap: 14px; }
@@ -193,6 +225,8 @@
     font-family: inherit;
   }
 
+  .back-row { text-align: center; }
+
   /* ---- Hosting / waiting ---- */
   #hosting { justify-content: center; align-items: center; text-align: center; gap: 18px; }
   .code-label {
@@ -230,8 +264,8 @@
   }
   .share-row { display: flex; gap: 8px; width: 100%; }
 
-  /* ---- Game ---- */
-  #game { gap: 18px; }
+  /* ---- Game (shared chrome) ---- */
+  #game { gap: 16px; }
 
   .players-row {
     display: flex;
@@ -248,6 +282,7 @@
     align-items: center;
     gap: 10px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    min-width: 0;
   }
   .player-badge .mark {
     font-family: Georgia, serif;
@@ -261,7 +296,7 @@
   .player-badge.x .mark { color: var(--x-color); background: rgba(76,211,255,0.12); }
   .player-badge.o .mark { color: var(--o-color); background: rgba(255,107,107,0.12); }
   .player-badge .info { min-width: 0; }
-  .player-badge .name { font-size: 13px; font-weight: 700; }
+  .player-badge .name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .player-badge .role { font-size: 11px; color: var(--text-dim); }
   .player-badge.active.x { border-color: var(--x-color); box-shadow: 0 0 0 3px var(--x-glow); }
   .player-badge.active.o { border-color: var(--o-color); box-shadow: 0 0 0 3px var(--o-glow); }
@@ -275,7 +310,9 @@
   }
   .turn-banner strong.x { color: var(--x-color); }
   .turn-banner strong.o { color: var(--o-color); }
+  .turn-banner.check strong { color: var(--o-color); }
 
+  /* ---- Tic Tac Toe board ---- */
   .board {
     aspect-ratio: 1;
     width: 100%;
@@ -315,6 +352,116 @@
   @keyframes draw { to { stroke-dashoffset: 0; } }
 
   .board.disabled { pointer-events: none; opacity: 0.85; }
+
+  /* ---- Chess board ---- */
+  .chess-wrap {
+    width: 100%;
+    position: relative;
+  }
+  .chess-board {
+    width: 100%;
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .chess-board.flipped { transform: rotate(180deg); }
+  .sq {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    font-size: 7.2vw;
+    max-font-size: 34px;
+    user-select: none;
+  }
+  @media (min-width: 480px) { .sq { font-size: 34px; } }
+  .sq.light { background: var(--sq-light); }
+  .sq.dark { background: var(--sq-dark); }
+  .sq .piece {
+    display: inline-block;
+    line-height: 1;
+    transform: rotate(0deg);
+  }
+  .chess-board.flipped .piece { transform: rotate(180deg); }
+  .sq.white-piece .piece { color: #F3F5FA; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
+  .sq.black-piece .piece { color: #0A0C10; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35)); -webkit-text-stroke: 0.6px #C9CEDA; }
+  .sq.selected::before {
+    content: ''; position: absolute; inset: 0; background: var(--sq-sel);
+  }
+  .sq.last-move::before {
+    content: ''; position: absolute; inset: 0; background: var(--sq-last);
+  }
+  .sq.in-check::before {
+    content: ''; position: absolute; inset: 0; background: var(--sq-check);
+  }
+  .sq .move-dot {
+    position: absolute;
+    width: 26%; height: 26%;
+    border-radius: 50%;
+    background: var(--sq-move);
+    pointer-events: none;
+  }
+  .sq .capture-ring {
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    border: 3px solid var(--sq-move);
+    pointer-events: none;
+  }
+  .sq .coord {
+    position: absolute;
+    bottom: 2px; left: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    opacity: 0.35;
+    font-family: monospace;
+  }
+  .chess-board.flipped .coord { transform: rotate(180deg); bottom: auto; top: 2px; right: 3px; left: auto; }
+
+  .promo-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+  .promo-overlay.show { display: flex; }
+  .promo-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+  }
+  .promo-card .t { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 12px; }
+  .promo-options { display: flex; gap: 10px; }
+  .promo-btn {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    font-size: 30px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .promo-btn:active { border-color: var(--x-color); }
+
+  .captured-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    color: var(--text-dim);
+    min-height: 18px;
+    letter-spacing: 1px;
+  }
 
   .result-banner {
     text-align: center;
@@ -375,6 +522,8 @@
     transform: translateX(-50%) translateY(0);
   }
 
+  [hidden] { display: none !important; }
+
   ::selection { background: var(--x-glow); }
 </style>
 </head>
@@ -383,12 +532,32 @@
 <div class="wrap">
 
   <div class="brand">
-    <h1><span class="x">X</span>/<span class="o">O</span> Online</h1>
+    <h1><span class="x">X</span>/<span class="o">O</span> &amp; Chess</h1>
     <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Offline</span></div>
   </div>
 
+  <!-- GAME PICKER -->
+  <div class="screen active" id="picker">
+    <div class="lobby-card">
+      <h2>Choose a game</h2>
+      <div class="picker-grid">
+        <div class="game-tile selected" data-game="ttt">
+          <div class="icon">⌗</div>
+          <div class="label">Tic Tac Toe</div>
+          <div class="sub">Quick &amp; simple</div>
+        </div>
+        <div class="game-tile" data-game="chess">
+          <div class="icon">♞</div>
+          <div class="label">Chess</div>
+          <div class="sub">Full rules</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="pickerNextBtn">Continue</button>
+  </div>
+
   <!-- LOBBY -->
-  <div class="screen active" id="lobby">
+  <div class="screen" id="lobby">
     <div class="lobby-card">
       <h2>Start a game</h2>
       <button class="btn btn-primary" id="hostBtn">Create Room</button>
@@ -402,6 +571,10 @@
         <input type="text" id="joinInput" placeholder="Enter room code" maxlength="10" autocomplete="off" autocapitalize="off" spellcheck="false" />
         <button class="btn btn-primary" id="joinBtn" style="width:auto; padding-left:22px; padding-right:22px;">Join</button>
       </div>
+    </div>
+
+    <div class="back-row">
+      <button class="btn btn-ghost" id="backToPickerBtn">← Change game</button>
     </div>
   </div>
 
@@ -422,24 +595,33 @@
   <div class="screen" id="game">
     <div class="players-row">
       <div class="player-badge x" id="badgeX">
-        <div class="mark">X</div>
+        <div class="mark" id="markX">X</div>
         <div class="info">
           <div class="name" id="nameX">You</div>
-          <div class="role">Player 1</div>
+          <div class="role" id="roleX">Player 1</div>
         </div>
       </div>
       <div class="player-badge o" id="badgeO">
-        <div class="mark">O</div>
+        <div class="mark" id="markO">O</div>
         <div class="info">
           <div class="name" id="nameO">Friend</div>
-          <div class="role">Player 2</div>
+          <div class="role" id="roleO">Player 2</div>
         </div>
       </div>
     </div>
 
+    <div class="captured-row" id="capturedRow" hidden>
+      <span id="capturedTop">&nbsp;</span>
+      <span id="capturedBottom">&nbsp;</span>
+    </div>
+
     <div class="turn-banner" id="turnBanner">—</div>
 
-    <div class="board" id="board"></div>
+    <div class="board" id="board" hidden></div>
+
+    <div class="chess-wrap" id="chessWrap" hidden>
+      <div class="chess-board" id="chessBoard"></div>
+    </div>
 
     <div class="result-banner" id="resultBanner"></div>
     <div class="disconnect-banner" id="disconnectBanner">Your friend disconnected.</div>
@@ -453,37 +635,37 @@
   <div class="footer-note">Peer-to-peer via WebRTC · no account, no data stored</div>
 </div>
 
+<div class="promo-overlay" id="promoOverlay">
+  <div class="promo-card">
+    <div class="t">Promote pawn to</div>
+    <div class="promo-options" id="promoOptions"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 (function(){
   "use strict";
 
-  // ---------------- State ----------------
+  // ==================================================================
+  // Shared state / networking (used by both games)
+  // ==================================================================
   let peer = null;
   let conn = null;
   let isHost = false;
-  let mySymbol = null;   // 'X' or 'O'
-  let board = Array(9).fill(null);
-  let currentTurn = 'X';
+  let mySymbol = null;   // 'X' or 'O'  (X = host = White in chess)
+  let selectedGame = 'ttt'; // 'ttt' | 'chess'
+  let activeGame = 'ttt';
   let gameOver = false;
   let myScore = 0, oppScore = 0;
   let roomCodeVal = '';
+  let rematchSwapped = false;
 
-  const WIN_LINES = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-
-  // ---------------- DOM ----------------
   const $ = (id) => document.getElementById(id);
-  const screens = {
-    lobby: $('lobby'), hosting: $('hosting'), game: $('game')
-  };
+  const screens = { picker: $('picker'), lobby: $('lobby'), hosting: $('hosting'), game: $('game') };
   const statusPill = $('statusPill');
   const statusText = $('statusText');
-  const boardEl = $('board');
   const turnBanner = $('turnBanner');
   const resultBanner = $('resultBanner');
   const disconnectBanner = $('disconnectBanner');
@@ -507,7 +689,6 @@
     toast._t = setTimeout(() => toastEl.classList.remove('show'), 1800);
   }
 
-  // ---------------- Room code helpers ----------------
   function randomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let s = '';
@@ -518,118 +699,6 @@
     return 'ttt-' + code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
 
-  // ---------------- Board rendering ----------------
-  function buildBoardDom() {
-    boardEl.innerHTML = '';
-    for (let i = 0; i < 9; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.idx = i;
-      cell.addEventListener('click', () => onCellClick(i));
-      boardEl.appendChild(cell);
-    }
-  }
-
-  function markSvg(symbol) {
-    if (symbol === 'X') {
-      return `<svg class="mark-x" viewBox="0 0 100 100">
-        <path d="M20,20 L80,80" style="animation-delay:0s"/>
-        <path d="M80,20 L20,80" style="animation-delay:0.12s"/>
-      </svg>`;
-    }
-    return `<svg class="mark-o" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="32"/>
-    </svg>`;
-  }
-
-  function renderBoard(winLine) {
-    const cells = boardEl.children;
-    for (let i = 0; i < 9; i++) {
-      const cell = cells[i];
-      const v = board[i];
-      cell.classList.toggle('filled', !!v);
-      cell.classList.toggle('win-cell', !!(winLine && winLine.includes(i)));
-      cell.innerHTML = v ? markSvg(v) : '';
-    }
-    boardEl.classList.toggle('disabled', gameOver || currentTurn !== mySymbol);
-  }
-
-  function updateTurnBanner() {
-    if (gameOver) return;
-    if (currentTurn === mySymbol) {
-      turnBanner.innerHTML = `<strong class="${mySymbol.toLowerCase()}">Your turn</strong>`;
-    } else {
-      turnBanner.innerHTML = `Waiting for friend's move…`;
-    }
-  }
-
-  function updateActiveBadges() {
-    badgeX.classList.toggle('active', currentTurn === 'X' && !gameOver);
-    badgeO.classList.toggle('active', currentTurn === 'O' && !gameOver);
-  }
-
-  function checkWinner() {
-    for (const line of WIN_LINES) {
-      const [a,b,c] = line;
-      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-        return { symbol: board[a], line };
-      }
-    }
-    if (board.every(v => v)) return { symbol: 'draw', line: null };
-    return null;
-  }
-
-  function finishGame(result) {
-    gameOver = true;
-    renderBoard(result.line);
-    updateActiveBadges();
-    turnBanner.textContent = '';
-    resultBanner.classList.add('show');
-    if (result.symbol === 'draw') {
-      resultBanner.className = 'result-banner show draw';
-      resultBanner.textContent = "It's a draw!";
-    } else if (result.symbol === mySymbol) {
-      myScore++;
-      resultBanner.className = 'result-banner show win';
-      resultBanner.textContent = 'You won! 🎉';
-    } else {
-      oppScore++;
-      resultBanner.className = 'result-banner show lose';
-      resultBanner.textContent = 'You lost this round.';
-    }
-  }
-
-  function onCellClick(i) {
-    if (gameOver || board[i] || currentTurn !== mySymbol) return;
-    applyMove(i, mySymbol);
-    sendMsg({ type: 'move', idx: i, symbol: mySymbol });
-  }
-
-  function applyMove(i, symbol) {
-    board[i] = symbol;
-    const result = checkWinner();
-    if (result) {
-      finishGame(result);
-    } else {
-      currentTurn = symbol === 'X' ? 'O' : 'X';
-      renderBoard();
-      updateTurnBanner();
-      updateActiveBadges();
-    }
-  }
-
-  function resetBoard(startingSymbol) {
-    board = Array(9).fill(null);
-    currentTurn = startingSymbol || 'X';
-    gameOver = false;
-    resultBanner.classList.remove('show');
-    disconnectBanner.classList.remove('show');
-    renderBoard();
-    updateTurnBanner();
-    updateActiveBadges();
-  }
-
-  // ---------------- Networking ----------------
   function sendMsg(obj) {
     if (conn && conn.open) conn.send(obj);
   }
@@ -641,22 +710,40 @@
     conn.on('error', (e) => { console.error(e); });
   }
 
+  function onPeerLeft() {
+    disconnectBanner.classList.add('show');
+    lockBoardInput(true);
+    setStatus('', 'Disconnected');
+  }
+
+  function lockBoardInput(locked) {
+    if (activeGame === 'ttt') {
+      $('board').classList.toggle('disabled', locked);
+    } else {
+      chessInputLocked = locked;
+    }
+  }
+
   function handleMsg(msg) {
     switch (msg.type) {
+      case 'game-select':
+        // guest receives which game the host chose, before connecting UI is built
+        break;
       case 'move':
-        applyMove(msg.idx, msg.symbol);
+        if (activeGame === 'ttt') applyTttMove(msg.idx, msg.symbol);
+        else applyChessMove(msg.from, msg.to, msg.promotion);
         break;
       case 'rematch-request':
-        // Only the host decides the next starter, to avoid both sides picking independently.
         if (isHost) {
-          rematchStarter = rematchStarter === 'X' ? 'O' : 'X';
-          startRematch(rematchStarter);
-          sendMsg({ type: 'rematch-accept', starter: rematchStarter });
+          const swap = !rematchSwapped;
+          rematchSwapped = swap;
+          startRematch(swap);
+          sendMsg({ type: 'rematch-accept', swap });
         }
         break;
       case 'rematch-accept':
-        rematchStarter = msg.starter;
-        startRematch(msg.starter);
+        rematchSwapped = msg.swap;
+        startRematch(msg.swap);
         break;
       case 'name':
         (mySymbol === 'X' ? $('nameO') : $('nameX')).textContent = msg.name || 'Friend';
@@ -664,24 +751,75 @@
     }
   }
 
-  function onPeerLeft() {
-    disconnectBanner.classList.add('show');
-    boardEl.classList.add('disabled');
-    setStatus('', 'Disconnected');
+  function startRematch(swap) {
+    // Swapping alternates who plays X/White vs O/Black each rematch, so
+    // it's fair over multiple games — chess especially always starts
+    // with White to move, so "starter" really means "who is White now".
+    if (swap) mySymbol = mySymbol === 'X' ? 'O' : 'X';
+    syncNameLabels();
+    if (activeGame === 'ttt') resetTtt();
+    else resetChess();
   }
 
-  function startRematch(starterSuggestedByHost) {
-    // Alternate starter each rematch, decided consistently: host alternates and tells guest.
-    resetBoard(starterSuggestedByHost);
+  // ==================================================================
+  // Game picker screen
+  // ==================================================================
+  document.querySelectorAll('.game-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      document.querySelectorAll('.game-tile').forEach(t => t.classList.remove('selected'));
+      tile.classList.add('selected');
+      selectedGame = tile.dataset.game;
+    });
+  });
+
+  $('pickerNextBtn').addEventListener('click', () => {
+    showScreen('lobby');
+  });
+
+  $('backToPickerBtn').addEventListener('click', () => {
+    showScreen('picker');
+  });
+
+  // ==================================================================
+  // Lobby: host / join
+  // ==================================================================
+  function setupGameChrome() {
+    activeGame = selectedGame;
+    const isChess = activeGame === 'chess';
+    $('board').hidden = isChess;
+    $('chessWrap').hidden = !isChess;
+    $('capturedRow').hidden = !isChess;
+
+    if (isChess) {
+      $('markX').textContent = '♔';
+      $('markO').textContent = '♚';
+      $('roleX').textContent = 'White';
+      $('roleO').textContent = 'Black';
+    } else {
+      $('markX').textContent = 'X';
+      $('markO').textContent = 'O';
+      $('roleX').textContent = 'Player 1';
+      $('roleO').textContent = 'Player 2';
+    }
+    syncNameLabels();
   }
 
-  // ---------------- Hosting flow ----------------
-  let rematchStarter = 'X';
+  // Keeps "You" attached to whichever badge (X or O) the local player
+  // currently controls — needed because rematch can swap colors.
+  function syncNameLabels() {
+    if (mySymbol === 'X') {
+      $('nameX').textContent = 'You';
+      if ($('nameO').textContent === 'You') $('nameO').textContent = 'Friend';
+    } else {
+      $('nameO').textContent = 'You';
+      if ($('nameX').textContent === 'You') $('nameX').textContent = 'Friend';
+    }
+  }
 
   function createRoom() {
     isHost = true;
     mySymbol = 'X';
-    roomCodeVal = randomCode();
+    roomCodeVal = randomCode() + (selectedGame === 'chess' ? 'C' : 'T'); // suffix encodes game for the joiner
     $('roomCode').textContent = roomCodeVal;
     showScreen('hosting');
     setStatus('waiting', 'Waiting…');
@@ -693,9 +831,7 @@
       ]}
     });
 
-    peer.on('open', () => {
-      // ready to accept connections
-    });
+    peer.on('open', () => {});
 
     peer.on('connection', (c) => {
       setupConnHandlers(c);
@@ -720,7 +856,13 @@
   }
 
   function joinRoom(code) {
+    code = (code || '').trim().toUpperCase();
     if (!code) { toast('Enter a room code'); return; }
+
+    // decode which game from trailing letter (T/C); default ttt if unknown
+    const suffix = code.slice(-1);
+    selectedGame = suffix === 'C' ? 'chess' : 'ttt';
+
     isHost = false;
     mySymbol = 'O';
     setStatus('waiting', 'Connecting…');
@@ -740,7 +882,6 @@
         enterGame();
         sendMsg({ type: 'name', name: 'Player' });
       });
-      // timeout if host code doesn't exist / doesn't respond
       setTimeout(() => {
         if (!conn.open) {
           toast("Couldn't find that room. Check the code.");
@@ -761,8 +902,10 @@
 
   function enterGame() {
     setStatus('connected', 'Connected');
+    setupGameChrome();
     showScreen('game');
-    resetBoard('X');
+    if (activeGame === 'ttt') resetTtt();
+    else resetChess();
   }
 
   function leaveGame() {
@@ -772,21 +915,13 @@
     myScore = 0; oppScore = 0;
     $('joinBtn').disabled = false;
     setStatus('', 'Offline');
-    showScreen('lobby');
+    showScreen('picker');
   }
 
-  // ---------------- Wire up UI ----------------
-  buildBoardDom();
-
   $('hostBtn').addEventListener('click', createRoom);
-
   $('joinBtn').addEventListener('click', () => joinRoom($('joinInput').value));
-  $('joinInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') joinRoom($('joinInput').value);
-  });
-  $('joinInput').addEventListener('input', (e) => {
-    e.target.value = e.target.value.toUpperCase();
-  });
+  $('joinInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom($('joinInput').value); });
+  $('joinInput').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
 
   $('cancelHostBtn').addEventListener('click', () => {
     if (peer) peer.destroy();
@@ -796,52 +931,399 @@
   });
 
   $('copyCodeBtn').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(roomCodeVal);
-      toast('Code copied!');
-    } catch {
-      toast(roomCodeVal);
-    }
+    try { await navigator.clipboard.writeText(roomCodeVal); toast('Code copied!'); }
+    catch { toast(roomCodeVal); }
   });
 
   $('shareBtn').addEventListener('click', async () => {
     const url = `${location.origin}${location.pathname}?room=${roomCodeVal}`;
-    const text = `Play Tic Tac Toe with me! Join with code ${roomCodeVal} or open: ${url}`;
-    if (navigator.share) {
-      try { await navigator.share({ text }); } catch {}
-    } else {
-      try {
-        await navigator.clipboard.writeText(text);
-        toast('Link copied!');
-      } catch {
-        toast(url);
-      }
+    const gameName = selectedGame === 'chess' ? 'Chess' : 'Tic Tac Toe';
+    const text = `Play ${gameName} with me! Join with code ${roomCodeVal} or open: ${url}`;
+    if (navigator.share) { try { await navigator.share({ text }); } catch {} }
+    else {
+      try { await navigator.clipboard.writeText(text); toast('Link copied!'); }
+      catch { toast(url); }
     }
   });
 
   $('leaveBtn').addEventListener('click', leaveGame);
 
   $('rematchBtn').addEventListener('click', () => {
-    if (!gameOver && board.some(v => v)) return; // ignore mid-game
+    const midGame = activeGame === 'ttt'
+      ? tttBoard.some(v => v)
+      : (chessGame && chessGame.history().length > 0);
+    if (midGame && !gameOver) return; // only allow rematch once a round has actually ended
     if (isHost) {
-      rematchStarter = rematchStarter === 'X' ? 'O' : 'X';
-      startRematch(rematchStarter);
-      sendMsg({ type: 'rematch-accept', starter: rematchStarter });
+      const swap = !rematchSwapped;
+      rematchSwapped = swap;
+      startRematch(swap);
+      sendMsg({ type: 'rematch-accept', swap });
     } else {
       sendMsg({ type: 'rematch-request' });
     }
   });
 
-  // Auto-fill join code from ?room= link
   const params = new URLSearchParams(location.search);
   const roomParam = params.get('room');
   if (roomParam) {
+    showScreen('lobby');
     $('joinInput').value = roomParam.toUpperCase();
   }
 
-  window.addEventListener('beforeunload', () => {
-    if (conn) conn.close();
-  });
+  window.addEventListener('beforeunload', () => { if (conn) conn.close(); });
+
+  // ==================================================================
+  // TIC TAC TOE
+  // ==================================================================
+  let tttBoard = Array(9).fill(null);
+  let tttTurn = 'X';
+  const WIN_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+  function buildTttDom() {
+    const boardEl = $('board');
+    boardEl.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.idx = i;
+      cell.addEventListener('click', () => onTttCellClick(i));
+      boardEl.appendChild(cell);
+    }
+  }
+  buildTttDom();
+
+  function tttMarkSvg(symbol) {
+    if (symbol === 'X') {
+      return `<svg class="mark-x" viewBox="0 0 100 100">
+        <path d="M20,20 L80,80" style="animation-delay:0s"/>
+        <path d="M80,20 L20,80" style="animation-delay:0.12s"/>
+      </svg>`;
+    }
+    return `<svg class="mark-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="32"/></svg>`;
+  }
+
+  function renderTtt(winLine) {
+    const cells = $('board').children;
+    for (let i = 0; i < 9; i++) {
+      const cell = cells[i];
+      const v = tttBoard[i];
+      cell.classList.toggle('filled', !!v);
+      cell.classList.toggle('win-cell', !!(winLine && winLine.includes(i)));
+      cell.innerHTML = v ? tttMarkSvg(v) : '';
+    }
+    $('board').classList.toggle('disabled', gameOver || tttTurn !== mySymbol);
+  }
+
+  function updateTttTurnBanner() {
+    if (gameOver) return;
+    turnBanner.classList.remove('check');
+    if (tttTurn === mySymbol) turnBanner.innerHTML = `<strong class="${mySymbol.toLowerCase()}">Your turn</strong>`;
+    else turnBanner.innerHTML = `Waiting for friend's move…`;
+  }
+
+  function updateActiveBadges(turnSymbol) {
+    badgeX.classList.toggle('active', turnSymbol === 'X' && !gameOver);
+    badgeO.classList.toggle('active', turnSymbol === 'O' && !gameOver);
+  }
+
+  function checkTttWinner() {
+    for (const line of WIN_LINES) {
+      const [a,b,c] = line;
+      if (tttBoard[a] && tttBoard[a] === tttBoard[b] && tttBoard[a] === tttBoard[c]) return { symbol: tttBoard[a], line };
+    }
+    if (tttBoard.every(v => v)) return { symbol: 'draw', line: null };
+    return null;
+  }
+
+  function finishGame(result) {
+    gameOver = true;
+    if (activeGame === 'ttt') { renderTtt(result.line); updateActiveBadges(null); }
+    else { renderChessBoard(); updateActiveBadges(null); }
+    turnBanner.textContent = '';
+    resultBanner.classList.add('show');
+    if (result.symbol === 'draw') {
+      resultBanner.className = 'result-banner show draw';
+      resultBanner.textContent = result.reason || "It's a draw!";
+    } else if (result.symbol === mySymbol) {
+      myScore++;
+      resultBanner.className = 'result-banner show win';
+      resultBanner.textContent = (result.reason ? result.reason + ' — ' : '') + 'You won! 🎉';
+    } else {
+      oppScore++;
+      resultBanner.className = 'result-banner show lose';
+      resultBanner.textContent = (result.reason ? result.reason + ' — ' : '') + 'You lost this round.';
+    }
+  }
+
+  function onTttCellClick(i) {
+    if (gameOver || tttBoard[i] || tttTurn !== mySymbol) return;
+    applyTttMove(i, mySymbol);
+    sendMsg({ type: 'move', idx: i, symbol: mySymbol });
+  }
+
+  function applyTttMove(i, symbol) {
+    tttBoard[i] = symbol;
+    const result = checkTttWinner();
+    if (result) {
+      finishGame(result);
+    } else {
+      tttTurn = symbol === 'X' ? 'O' : 'X';
+      renderTtt();
+      updateTttTurnBanner();
+      updateActiveBadges(tttTurn);
+    }
+  }
+
+  function resetTtt() {
+    tttBoard = Array(9).fill(null);
+    tttTurn = 'X';
+    gameOver = false;
+    resultBanner.classList.remove('show');
+    disconnectBanner.classList.remove('show');
+    renderTtt();
+    updateTttTurnBanner();
+    updateActiveBadges(tttTurn);
+  }
+
+  // ==================================================================
+  // CHESS
+  // ==================================================================
+  let chessGame = null;       // Chess.js instance
+  let chessSelected = null;   // selected square e.g. 'e2'
+  let chessLegalTargets = []; // legal move objects for selected square
+  let chessInputLocked = false;
+  let lastMoveSquares = [];
+
+  const PIECE_GLYPH = {
+    p: '♟', r: '♜', n: '♞', b: '♝', q: '♛', k: '♚',
+  };
+  const FILES = ['a','b','c','d','e','f','g','h'];
+
+  function squareId(fileIdx, rankIdx) { return FILES[fileIdx] + (8 - rankIdx); }
+
+  function buildChessDom() {
+    const boardEl = $('chessBoard');
+    boardEl.innerHTML = '';
+    for (let r = 0; r < 8; r++) {
+      for (let f = 0; f < 8; f++) {
+        const sq = document.createElement('div');
+        const id = squareId(f, r);
+        sq.className = 'sq ' + (((r + f) % 2 === 0) ? 'light' : 'dark');
+        sq.dataset.sq = id;
+        if (f === 0) {
+          const coord = document.createElement('span');
+          coord.className = 'coord';
+          coord.textContent = id;
+          sq.appendChild(coord);
+        }
+        sq.addEventListener('click', () => onChessSquareClick(id));
+        boardEl.appendChild(sq);
+      }
+    }
+  }
+  buildChessDom();
+
+  function pieceSpanHtml(piece) {
+    if (!piece) return '';
+    const glyph = PIECE_GLYPH[piece.type];
+    return `<span class="piece">${glyph}</span>`;
+  }
+
+  function renderChessBoard() {
+    if (!chessGame) return;
+    const boardEl = $('chessBoard');
+    boardEl.classList.toggle('flipped', mySymbol === 'O');
+
+    const boardState = chessGame.board(); // 8x8, [0] = rank8 ... [7] = rank1
+    let checkSquare = null;
+    if (chessGame.inCheck && chessGame.inCheck()) {
+      const turnColor = chessGame.turn(); // 'w' or 'b' -> side to move is in check
+      const pieces = boardState;
+      for (let r = 0; r < 8; r++) {
+        for (let f = 0; f < 8; f++) {
+          const p = pieces[r][f];
+          if (p && p.type === 'k' && p.color === turnColor) checkSquare = squareId(f, r);
+        }
+      }
+    }
+
+    Array.from(boardEl.children).forEach(sqEl => {
+      const id = sqEl.dataset.sq;
+      const fileIdx = FILES.indexOf(id[0]);
+      const rankIdx = 8 - parseInt(id[1], 10);
+      const piece = boardState[rankIdx][fileIdx];
+
+      const coordEl = sqEl.querySelector('.coord');
+      sqEl.innerHTML = '';
+      if (coordEl) sqEl.appendChild(coordEl);
+
+      sqEl.classList.remove('white-piece', 'black-piece');
+      if (piece) {
+        sqEl.insertAdjacentHTML('beforeend', pieceSpanHtml(piece));
+        sqEl.classList.add(piece.color === 'w' ? 'white-piece' : 'black-piece');
+      }
+
+      sqEl.classList.toggle('selected', id === chessSelected);
+      sqEl.classList.toggle('last-move', lastMoveSquares.includes(id));
+      sqEl.classList.toggle('in-check', id === checkSquare);
+
+      const legal = chessLegalTargets.find(m => m.to === id);
+      if (legal) {
+        const dot = document.createElement('div');
+        dot.className = legal.captured ? 'capture-ring' : 'move-dot';
+        sqEl.appendChild(dot);
+      }
+    });
+
+    updateCapturedRow();
+  }
+
+  function updateCapturedRow() {
+    if (!chessGame) return;
+    const history = chessGame.history({ verbose: true });
+    const capturedByWhite = [], capturedByBlack = [];
+    history.forEach(m => {
+      if (m.captured) {
+        const glyph = PIECE_GLYPH[m.captured];
+        if (m.color === 'w') capturedByWhite.push(glyph);
+        else capturedByBlack.push(glyph);
+      }
+    });
+    const myCaptures = mySymbol === 'X' ? capturedByWhite : capturedByBlack;
+    const oppCaptures = mySymbol === 'X' ? capturedByBlack : capturedByWhite;
+    $('capturedTop').textContent = oppCaptures.join(' ') || '\u00A0';
+    $('capturedBottom').textContent = myCaptures.join(' ') || '\u00A0';
+  }
+
+  function myChessColor() { return mySymbol === 'X' ? 'w' : 'b'; }
+
+  function updateChessTurnBanner() {
+    if (gameOver) return;
+    turnBanner.classList.remove('check');
+    const turnColor = chessGame.turn();
+    const myTurn = turnColor === myChessColor();
+    if (chessGame.inCheck && chessGame.inCheck()) {
+      turnBanner.classList.add('check');
+    }
+    if (myTurn) {
+      turnBanner.innerHTML = `<strong class="${mySymbol.toLowerCase()}">Your move${chessGame.inCheck && chessGame.inCheck() ? ' — Check!' : ''}</strong>`;
+    } else {
+      turnBanner.innerHTML = `Waiting for friend's move…`;
+    }
+  }
+
+  function chessResultIfOver() {
+    if (!chessGame.isGameOver()) return null;
+    if (chessGame.isCheckmate()) {
+      // the side to move is checkmated -> the OTHER side won
+      const winnerColor = chessGame.turn() === 'w' ? 'b' : 'w';
+      const winnerSymbol = winnerColor === 'w' ? 'X' : 'O';
+      return { symbol: winnerSymbol, reason: 'Checkmate' };
+    }
+    if (chessGame.isStalemate()) return { symbol: 'draw', reason: 'Stalemate' };
+    if (chessGame.isThreefoldRepetition()) return { symbol: 'draw', reason: 'Threefold repetition' };
+    if (chessGame.isInsufficientMaterial()) return { symbol: 'draw', reason: 'Insufficient material' };
+    if (chessGame.isDraw()) return { symbol: 'draw', reason: '50-move rule' };
+    return { symbol: 'draw', reason: 'Game over' };
+  }
+
+  function onChessSquareClick(id) {
+    if (gameOver || chessInputLocked) return;
+    if (chessGame.turn() !== myChessColor()) return;
+
+    // If a target is legal from the currently selected square, play it
+    if (chessSelected) {
+      const legal = chessLegalTargets.find(m => m.to === id);
+      if (legal) {
+        playChessMove(chessSelected, id, legal);
+        return;
+      }
+    }
+
+    const piece = chessGame.get(id);
+    if (piece && piece.color === myChessColor()) {
+      chessSelected = id;
+      chessLegalTargets = chessGame.moves({ square: id, verbose: true });
+      renderChessBoard();
+    } else {
+      chessSelected = null;
+      chessLegalTargets = [];
+      renderChessBoard();
+    }
+  }
+
+  function playChessMove(from, to, legalMoveObj) {
+    const needsPromotion = legalMoveObj && legalMoveObj.piece === 'p' &&
+      (to[1] === '8' || to[1] === '1');
+
+    if (needsPromotion) {
+      showPromoPicker((promoPiece) => {
+        commitChessMove(from, to, promoPiece);
+        sendMsg({ type: 'move', from, to, promotion: promoPiece });
+      });
+    } else {
+      commitChessMove(from, to, undefined);
+      sendMsg({ type: 'move', from, to, promotion: undefined });
+    }
+  }
+
+  function commitChessMove(from, to, promotion) {
+    const move = chessGame.move({ from, to, promotion: promotion || 'q' });
+    if (!move) return; // illegal / desync guard
+    lastMoveSquares = [from, to];
+    chessSelected = null;
+    chessLegalTargets = [];
+    const result = chessResultIfOver();
+    if (result) {
+      finishGame(result);
+    } else {
+      renderChessBoard();
+      updateChessTurnBanner();
+      updateActiveBadges(chessGame.turn() === 'w' ? 'X' : 'O');
+    }
+  }
+
+  function applyChessMove(from, to, promotion) {
+    commitChessMove(from, to, promotion);
+  }
+
+  function showPromoPicker(onPick) {
+    const overlay = $('promoOverlay');
+    const opts = $('promoOptions');
+    opts.innerHTML = '';
+    const color = myChessColor();
+    const pieces = [
+      { type: 'q', glyph: PIECE_GLYPH.q },
+      { type: 'r', glyph: PIECE_GLYPH.r },
+      { type: 'b', glyph: PIECE_GLYPH.b },
+      { type: 'n', glyph: PIECE_GLYPH.n },
+    ];
+    pieces.forEach(p => {
+      const btn = document.createElement('div');
+      btn.className = 'promo-btn ' + (color === 'w' ? 'white-piece' : 'black-piece');
+      btn.innerHTML = `<span class="piece">${p.glyph}</span>`;
+      btn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        onPick(p.type);
+      });
+      opts.appendChild(btn);
+    });
+    overlay.classList.add('show');
+  }
+
+  function resetChess() {
+    chessGame = new Chess();
+    chessSelected = null;
+    chessLegalTargets = [];
+    chessInputLocked = false;
+    lastMoveSquares = [];
+    gameOver = false;
+    resultBanner.classList.remove('show');
+    disconnectBanner.classList.remove('show');
+    renderChessBoard();
+    updateChessTurnBanner();
+    updateActiveBadges('X');
+  }
 
 })();
 </script>
