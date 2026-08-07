@@ -1,14 +1,6 @@
 /* ==========================================================================
    NETWORK.JS — WebRTC peer connection via PeerJS + a tiny message bus
-   ==========================================================================
-   This module owns the actual PeerJS Peer/DataConnection objects and room
-   code generation. It knows NOTHING about game rules — it just moves JSON
-   messages between the two browsers and lets other modules subscribe to
-   message types via Net.onMessage(type, handler).
-
-   Room code format: 5 random chars + 1 trailing "game id" char, e.g. "X7K2MT".
-   The trailing char lets a joining player's client know which game module
-   to load before the connection is even established.
+   Added: media call support (callPeer, incoming call hooks)
    ========================================================================== */
 
 import { UI } from './ui.js';
@@ -28,6 +20,13 @@ export const Net = (() => {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
   ];
+
+  let currentCall = null;
+
+  // Handlers that can be set by other modules (voice.js will set these)
+  let incomingCallHandler = null; // callback(call)
+  let callStreamHandler = null;   // callback(remoteStream)
+  let callCloseHandler = null;    // callback()
 
   function randomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -63,6 +62,42 @@ export const Net = (() => {
     conn.on('error', (e) => console.error('[net] connection error', e));
   }
 
+  // --- Media call helpers -------------------------------------------------
+  function attachCallHandlers(call, opts = {}) {
+    currentCall = call;
+    call.on('stream', (remoteStream) => {
+      if (opts.onStream) opts.onStream(remoteStream);
+      if (callStreamHandler) callStreamHandler(remoteStream);
+    });
+    call.on('close', () => {
+      if (opts.onClose) opts.onClose();
+      if (callCloseHandler) callCloseHandler();
+      currentCall = null;
+    });
+    call.on('error', (e) => console.error('[net] call error', e));
+  }
+
+  function callPeerWithStream(stream, opts = {}) {
+    if (!peer) throw new Error('Peer not initialized yet');
+    const call = peer.call(peerIdFromCode(roomCode), stream);
+    attachCallHandlers(call, opts);
+    return call;
+  }
+
+  function setupPeerCallListener(p) {
+    if (!p || !p.on) return;
+    p.on('call', (call) => {
+      if (incomingCallHandler) {
+        try { incomingCallHandler(call); }
+        catch (e) { console.error('[net] incomingCallHandler error', e); }
+      } else {
+        // Default answer without stream (receive-only) to avoid throwing
+        try { call.answer(); } catch (e) { /* ignore */ }
+        attachCallHandlers(call, {});
+      }
+    });
+  }
+
   /**
    * Host a room. gameIdChar is a single uppercase letter identifying the
    * game (e.g. 'T' for tic-tac-toe, 'C' for chess) — embedded as the last
@@ -73,6 +108,8 @@ export const Net = (() => {
     roomCode = randomCode() + gameIdChar;
 
     peer = new window.Peer(peerIdFromCode(roomCode), { config: { iceServers: ICE_SERVERS } });
+
+    setupPeerCallListener(peer);
 
     peer.on('open', () => {});
 
@@ -112,6 +149,8 @@ export const Net = (() => {
 
     peer = new window.Peer({ config: { iceServers: ICE_SERVERS } });
 
+    setupPeerCallListener(peer);
+
     peer.on('open', () => {
       const c = peer.connect(peerIdFromCode(code), { reliable: true });
       attachConn(c);
@@ -140,17 +179,42 @@ export const Net = (() => {
   function teardown() {
     if (conn) { try { conn.close(); } catch (e) {} }
     if (peer) { try { peer.destroy(); } catch (e) {} }
+    if (currentCall && currentCall.close) { try { currentCall.close(); } catch (e) {} }
     peer = null;
     conn = null;
+    currentCall = null;
   }
 
   function getIsHost() { return isHost; }
   function getRoomCode() { return roomCode; }
   function isConnected() { return !!(conn && conn.open); }
 
-  return {
+  const netExports = {
     on, onOpen, onClose, send,
     host, join, teardown,
     getIsHost, getRoomCode, isConnected,
+    // media helpers
+    callPeer: callPeerWithStream,
+    // these properties are exposed as accessors below so other modules can
+    // assign handlers like Net._onIncomingCall = fn
+    _onIncomingCall: null,
+    _onCallStream: null,
+    _onCallClose: null,
   };
+
+  // Keep internal handler refs in sync with external property assignments
+  Object.defineProperty(netExports, '_onIncomingCall', {
+    get() { return incomingCallHandler; },
+    set(v) { incomingCallHandler = v; }
+  });
+  Object.defineProperty(netExports, '_onCallStream', {
+    get() { return callStreamHandler; },
+    set(v) { callStreamHandler = v; }
+  });
+  Object.defineProperty(netExports, '_onCallClose', {
+    get() { return callCloseHandler; },
+    set(v) { callCloseHandler = v; }
+  });
+
+  return netExports;
 })();
