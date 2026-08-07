@@ -7,6 +7,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
   gap: 8px;
   background: var(--line);
   border-radius: var(--radius);
@@ -21,13 +22,17 @@
   justify-content: center;
   cursor: pointer;
   position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s ease;
 }
 .cell:active { background: #171C28; }
 .cell.filled { cursor: default; }
 .cell.win-cell { background: rgba(107,255,176,0.1); }
-.cell svg { width: 56%; height: 56%; overflow: visible; }
+.cell svg { width: 56%; height: 56%; max-width: 100%; max-height: 100%; overflow: visible; flex-shrink: 0; }
 .cell .mark-x { stroke: var(--x-color); filter: drop-shadow(0 0 10px var(--x-glow)); }
 .cell .mark-o { stroke: var(--o-color); filter: drop-shadow(0 0 10px var(--o-glow)); }
 .cell path, .cell circle {
