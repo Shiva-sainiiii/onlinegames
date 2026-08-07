@@ -1,0 +1,43 @@
+/* ==========================================================================
+   TTT.CSS — Tic Tac Toe board styles only
+   ========================================================================== */
+
+.board {
+  aspect-ratio: 1;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+  position: relative;
+}
+.cell {
+  background: var(--bg-raised);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+.cell:active { background: #171C28; }
+.cell.filled { cursor: default; }
+.cell.win-cell { background: rgba(107,255,176,0.1); }
+.cell svg { width: 56%; height: 56%; overflow: visible; }
+.cell .mark-x { stroke: var(--x-color); filter: drop-shadow(0 0 10px var(--x-glow)); }
+.cell .mark-o { stroke: var(--o-color); filter: drop-shadow(0 0 10px var(--o-glow)); }
+.cell path, .cell circle {
+  fill: none;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  animation: draw 0.35s ease forwards;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.board.disabled { pointer-events: none; opacity: 0.85; }
