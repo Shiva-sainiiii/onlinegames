@@ -1,7 +1,6 @@
 /* ==========================================================================
    CHAT.JS — in-game chat panel (text + emoji reactions)
-   Talks to the peer purely through Net; knows nothing about which game
-   is active, so it works unchanged for every game module.
+   Added: typing notifications, improved bubbles with timestamps, top chat button wiring
    ========================================================================== */
 
 import { Net } from './network.js';
@@ -15,11 +14,12 @@ export const Chat = (() => {
   let chatOpen = false;
   let unreadCount = 0;
 
-  let chatToggle, chatPanel, chatMessages, chatBadge, chatInput, chatSendBtn, chatScrim;
+  let chatToggle, chatToggleTop, chatPanel, chatMessages, chatBadge, chatBadgeTop, chatInput, chatSendBtn, chatScrim;
+  let typingDebounce = null;
 
   function setOpen(open) {
     chatOpen = open;
-    chatToggle.classList.toggle('open', open);
+    if (chatToggle) chatToggle.classList.toggle('open', open);
     chatPanel.classList.toggle('open', open);
     chatScrim.classList.toggle('show', open);
     if (open) {
@@ -30,17 +30,39 @@ export const Chat = (() => {
   }
 
   function updateBadge() {
-    chatBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
-    chatBadge.classList.toggle('show', unreadCount > 0);
+    const text = unreadCount > 9 ? '9+' : String(unreadCount);
+    if (chatBadge) { chatBadge.textContent = text; chatBadge.classList.toggle('show', unreadCount > 0); }
+    if (chatBadgeTop) { chatBadgeTop.textContent = text; chatBadgeTop.style.display = unreadCount > 0 ? 'inline-block' : 'none'; }
   }
 
-  function addBubble(text, who, kind) {
+  function formatTime(ts = Date.now()) {
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function addBubble({ text, who = 'them', kind = 'text', ts = Date.now() }) {
     const emptyEl = chatMessages.querySelector('.chat-empty');
     if (emptyEl) emptyEl.remove();
+    const row = document.createElement('div');
+    row.className = 'chat-row ' + (who === 'me' ? 'me' : 'them');
+
     const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble ' + who + (kind === 'emoji' ? ' reaction' : '');
+    bubble.className = 'chat-bubble' + (kind === 'emoji' ? ' reaction' : '');
     bubble.textContent = text;
-    chatMessages.appendChild(bubble);
+
+    const meta = document.createElement('div');
+    meta.className = 'chat-meta';
+    meta.textContent = formatTime(ts);
+
+    if (who === 'me') {
+      row.appendChild(meta);
+      row.appendChild(bubble);
+    } else {
+      row.appendChild(bubble);
+      row.appendChild(meta);
+    }
+
+    chatMessages.appendChild(row);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
     if (who === 'them') {
@@ -52,11 +74,26 @@ export const Chat = (() => {
     }
   }
 
+  function showRemoteTyping(val) {
+    let el = chatMessages.querySelector('.typing-indicator');
+    if (val) {
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'typing-indicator';
+        el.innerHTML = '<div class="dots"><span></span><span></span><span></span></div><div class="who">Friend is typing…</div>';
+        chatMessages.appendChild(el);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    } else {
+      if (el) el.remove();
+    }
+  }
+
   function sendChat(text, kind) {
     const trimmed = (text || '').trim();
     if (!trimmed) return;
-    addBubble(trimmed, 'me', kind);
-    Net.send({ type: 'chat', text: trimmed, kind: kind || 'text' });
+    addBubble({ text: trimmed, who: 'me', kind });
+    Net.send({ type: 'chat', text: trimmed, kind: kind || 'text', ts: Date.now() });
   }
 
   function reset() {
@@ -68,32 +105,43 @@ export const Chat = (() => {
 
   function init() {
     chatToggle = $('chatToggle');
+    chatToggleTop = $('chatToggleTop');
     chatPanel = $('chatPanel');
     chatMessages = $('chatMessages');
     chatBadge = $('chatBadge');
+    chatBadgeTop = $('chatBadgeTop');
     chatInput = $('chatInput');
     chatSendBtn = $('chatSendBtn');
     chatScrim = $('chatScrim');
 
-    chatToggle.addEventListener('click', () => setOpen(!chatOpen));
-    chatScrim.addEventListener('click', () => setOpen(false));
+    // wire toggles
+    if (chatToggle) chatToggle.addEventListener('click', () => setOpen(!chatOpen));
+    if (chatToggleTop) chatToggleTop.addEventListener('click', () => setOpen(!chatOpen));
+    if (chatScrim) chatScrim.addEventListener('click', () => setOpen(false));
 
-    chatSendBtn.addEventListener('click', () => {
-      sendChat(chatInput.value, 'text');
-      chatInput.value = '';
-    });
+    // send actions
+    chatSendBtn.addEventListener('click', () => { sendChat(chatInput.value, 'text'); chatInput.value = ''; sendTyping(false); });
     chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        sendChat(chatInput.value, 'text');
-        chatInput.value = '';
-      }
+      if (e.key === 'Enter') { sendChat(chatInput.value, 'text'); chatInput.value = ''; sendTyping(false); }
+      else { sendTyping(true); }
     });
+    chatInput.addEventListener('blur', () => sendTyping(false));
 
+    // quick reactions
     document.querySelectorAll('.chat-quick-row button').forEach(btn => {
-      btn.addEventListener('click', () => sendChat(btn.dataset.emoji, 'emoji'));
+      btn.addEventListener('click', () => { sendChat(btn.dataset.emoji, 'emoji'); });
     });
 
-    Net.on('chat', (msg) => addBubble(msg.text, 'them', msg.kind));
+    // typing events (debounced)
+    function sendTyping(isTyping) {
+      Net.send({ type: 'typing', isTyping: !!isTyping });
+      if (typingDebounce) clearTimeout(typingDebounce);
+      if (isTyping) typingDebounce = setTimeout(() => { Net.send({ type: 'typing', isTyping: false }); typingDebounce = null; }, 3000);
+    }
+
+    // network handlers
+    Net.on('chat', (msg) => addBubble({ text: msg.text, who: 'them', kind: msg.kind || 'text', ts: msg.ts || Date.now() }));
+    Net.on('typing', (msg) => showRemoteTyping(!!msg.isTyping));
   }
 
   return { init, reset, sendChat };
