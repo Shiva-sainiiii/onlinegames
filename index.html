@@ -90,6 +90,11 @@
       </div>
     </div>
 
+    <div class="voice-row" id="voiceRow" hidden>
+      <button class="voice-btn" id="micToggleBtn" title="Toggle mic">🎙️</button>
+      <button class="voice-btn" id="speakerToggleBtn" title="Toggle friend's audio">🔊</button>
+    </div>
+
     <div class="captured-row" id="capturedRow" hidden>
       <span id="capturedTop">&nbsp;</span>
       <span id="capturedBottom">&nbsp;</span>
@@ -123,13 +128,11 @@
       <div class="chat-messages" id="chatMessages">
         <div class="chat-empty">Say hi 👋</div>
       </div>
-      <div class="chat-quick-row">
-        <button data-emoji="👍">👍</button>
-        <button data-emoji="😂">😂</button>
-        <button data-emoji="🔥">🔥</button>
-        <button data-emoji="😱">😱</button>
-        <button data-emoji="🤝">🤝</button>
+      <div class="chat-tabs">
+        <button class="chat-tab" id="tabEmojiBtn">Emoji</button>
+        <button class="chat-tab" id="tabLinesBtn">Voice lines</button>
       </div>
+      <div class="chat-quick-row" id="chatQuickRow"></div>
       <div class="chat-input-row">
         <input type="text" id="chatInput" placeholder="Type a message…" maxlength="200" autocomplete="off" />
         <button class="chat-send-btn" id="chatSendBtn">Send</button>
