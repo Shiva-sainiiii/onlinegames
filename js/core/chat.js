@@ -15,12 +15,13 @@ export const Chat = (() => {
   let chatOpen = false;
   let unreadCount = 0;
 
-  let chatToggle, chatPanel, chatMessages, chatBadge, chatInput, chatSendBtn;
+  let chatToggle, chatPanel, chatMessages, chatBadge, chatInput, chatSendBtn, chatScrim;
 
   function setOpen(open) {
     chatOpen = open;
     chatToggle.classList.toggle('open', open);
     chatPanel.classList.toggle('open', open);
+    chatScrim.classList.toggle('show', open);
     if (open) {
       unreadCount = 0;
       updateBadge();
@@ -72,8 +73,10 @@ export const Chat = (() => {
     chatBadge = $('chatBadge');
     chatInput = $('chatInput');
     chatSendBtn = $('chatSendBtn');
+    chatScrim = $('chatScrim');
 
     chatToggle.addEventListener('click', () => setOpen(!chatOpen));
+    chatScrim.addEventListener('click', () => setOpen(false));
 
     chatSendBtn.addEventListener('click', () => {
       sendChat(chatInput.value, 'text');
