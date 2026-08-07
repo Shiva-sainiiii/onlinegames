@@ -24,15 +24,15 @@ export const Audio = (() => {
   // Once you've dropped the matching file into assets/sfx/, uncomment its
   // line here and it takes over automatically from the synthesized fallback.
   const SFX_FILES = {
-    // move: 'assets/sfx/move.mp3',
-    // win: 'assets/sfx/win.mp3',
-    // lose: 'assets/sfx/lose.mp3',
-    // draw: 'assets/sfx/draw.mp3',
-    // connect: 'assets/sfx/connect.mp3',
-    // message: 'assets/sfx/message.mp3',
-    // click: 'assets/sfx/click.mp3',
-    // error: 'assets/sfx/error.mp3',
-    // capture: 'assets/sfx/capture.mp3',  // chess-only, add when you move to chess polish
+    move: 'assets/sfx/move.mp3',
+    win: 'assets/sfx/win.mp3',
+    lose: 'assets/sfx/lose.mp3',
+    draw: 'assets/sfx/draw.mp3',
+    connect: 'assets/sfx/connect.mp3',
+    message: 'assets/sfx/message.mp3',
+    click: 'assets/sfx/click.mp3',
+    error: 'assets/sfx/error.mp3',
+    capture: 'assets/sfx/capture.mp3',  // chess-only, add when you move to chess polish
   };
 
   // ---- Map event name -> synthesized fallback tone spec ----
