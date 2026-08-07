@@ -31,8 +31,8 @@ export const Audio = (() => {
     connect: 'assets/sfx/connect.mp3',
     message: 'assets/sfx/message.mp3',
     click: 'assets/sfx/click.mp3',
-    // error: 'assets/sfx/error.mp3',
-    // capture: 'assets/sfx/capture.mp3',  // chess-only, add when you move to chess polish
+    error: 'assets/sfx/error.mp3',
+    capture: 'assets/sfx/capture.mp3',  // chess-only, add when you move to chess polish
   };
 
   // ---- Map event name -> synthesized fallback tone spec ----
