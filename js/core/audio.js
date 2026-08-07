@@ -31,8 +31,8 @@ export const Audio = (() => {
     connect: 'assets/sfx/connect.mp3',
     message: 'assets/sfx/message.mp3',
     click: 'assets/sfx/click.mp3',
-    error: 'assets/sfx/error.mp3',
-    capture: 'assets/sfx/capture.mp3',  // chess-only, add when you move to chess polish
+    // error: 'assets/sfx/error.mp3',
+    // capture: 'assets/sfx/capture.mp3',  // chess-only, add when you move to chess polish
   };
 
   // ---- Map event name -> synthesized fallback tone spec ----
@@ -53,6 +53,39 @@ export const Audio = (() => {
   let ctx = null;
   let muted = localStorage.getItem(STORAGE_KEY) === '1';
   const fileCache = {};
+
+  // ---- Background music ----
+  const BG_MUSIC_FILE = 'assets/sfx/bgmusic.mp3';
+  let bgEl = null;
+
+  function getBgEl() {
+    if (!bgEl) {
+      bgEl = new window.Audio(BG_MUSIC_FILE);
+      bgEl.loop = true;
+      bgEl.volume = 0.35;
+    }
+    return bgEl;
+  }
+
+  function playBgMusic() {
+    if (muted) return;
+    const el = getBgEl();
+    el.play().catch(() => {
+      // Blocked until a user gesture — retried from primeOnFirstGesture below.
+    });
+  }
+
+  function stopBgMusic() {
+    if (bgEl) bgEl.pause();
+  }
+
+  function pauseBgMusic() {
+    if (bgEl) bgEl.pause();
+  }
+
+  function resumeBgMusic() {
+    if (!muted) playBgMusic();
+  }
 
   function getCtx() {
     if (!ctx) {
@@ -114,6 +147,7 @@ export const Audio = (() => {
   function setMuted(val) {
     muted = !!val;
     localStorage.setItem(STORAGE_KEY, muted ? '1' : '0');
+    if (muted) stopBgMusic(); else resumeBgMusic();
   }
 
   function toggleMuted() {
@@ -128,6 +162,7 @@ export const Audio = (() => {
   function primeOnFirstGesture() {
     const unlock = () => {
       getCtx();
+      resumeBgMusic();
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
     };
@@ -136,5 +171,8 @@ export const Audio = (() => {
   }
   primeOnFirstGesture();
 
-  return { play, setMuted, toggleMuted, isMuted };
+  return {
+    play, setMuted, toggleMuted, isMuted,
+    playBgMusic, stopBgMusic, pauseBgMusic, resumeBgMusic,
+  };
 })();
