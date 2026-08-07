@@ -147,10 +147,13 @@ export const Net = (() => {
   function getIsHost() { return isHost; }
   function getRoomCode() { return roomCode; }
   function isConnected() { return !!(conn && conn.open); }
+  function getPeer() { return peer; }
+  function getRemotePeerId() { return conn ? conn.peer : null; }
 
   return {
     on, onOpen, onClose, send,
     host, join, teardown,
     getIsHost, getRoomCode, isConnected,
+    getPeer, getRemotePeerId,
   };
 })();
