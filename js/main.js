@@ -13,7 +13,6 @@ import { Net } from './core/network.js';
 import { Chat } from './core/chat.js';
 import { Audio } from './core/audio.js';
 import { GameRegistry } from './core/gameRegistry.js';
-import { Voice } from './core/voice.js';
 
 // Import + self-register every available game here. Adding a new game is
 // just: write the module, add one import line below, add its picker tile
@@ -292,63 +291,6 @@ import './games/chess/chess.js';
   GameRegistry.listGames().forEach(g => g.init());
   Chat.init();
   renderGamePicker();
-
-  // --- Voice integration: initialize Voice and wire UI -----------------
-  Voice.init(Net);
-
-  // create a hidden audio element to play remote audio streams
-  let remoteAudioEl = document.getElementById('remoteAudio');
-  if (!remoteAudioEl) {
-    remoteAudioEl = document.createElement('audio');
-    remoteAudioEl.id = 'remoteAudio';
-    remoteAudioEl.autoplay = true;
-    remoteAudioEl.style.display = 'none';
-    document.body.appendChild(remoteAudioEl);
-  }
-
-  Voice.on('stream', (remoteStream) => {
-    if (!remoteStream) {
-      try { remoteAudioEl.srcObject = null; } catch (e) {}
-      return;
-    }
-    try {
-      remoteAudioEl.srcObject = remoteStream;
-      remoteAudioEl.play().catch(() => {});
-    } catch (e) {
-      console.warn('[main] setting remote audio stream failed', e);
-    }
-  });
-
-  const voiceBtn = document.getElementById('voiceToggle');
-  const voiceMuteBtn = document.getElementById('voiceMute');
-
-  if (voiceBtn) {
-    voiceBtn.addEventListener('click', async () => {
-      try {
-        if (voiceBtn.classList.contains('active')) {
-          await Voice.stop();
-          voiceBtn.classList.remove('active');
-          voiceBtn.textContent = '🎙️';
-        } else {
-          await Voice.start();
-          voiceBtn.classList.add('active');
-          voiceBtn.textContent = '📞';
-        }
-      } catch (e) { console.warn('[voice] start/stop failed', e); }
-    });
-  }
-
-  if (voiceMuteBtn) {
-    voiceMuteBtn.addEventListener('click', () => {
-      if (Voice.isMuted && Voice.isMuted()) {
-        Voice.unmute();
-        voiceMuteBtn.textContent = '🔇';
-      } else {
-        Voice.mute();
-        voiceMuteBtn.textContent = '🔈';
-      }
-    });
-  }
 
   const params = new URLSearchParams(location.search);
   const roomParam = params.get('room');
