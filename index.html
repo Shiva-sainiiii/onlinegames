@@ -73,27 +73,28 @@
 
   <!-- GAME -->
   <div class="screen" id="game">
-    <div class="players-row">
-      <div class="player-badge x" id="badgeX">
-        <div class="mark" id="markX">X</div>
-        <div class="info">
-          <div class="name" id="nameX">You</div>
-          <div class="role" id="roleX">Player 1</div>
+    <div class="hud-bar">
+      <div class="hud-players">
+        <div class="hud-player x" id="badgeX">
+          <span class="hud-mark" id="markX">X</span>
+          <span class="hud-name" id="nameX">You</span>
+        </div>
+        <span class="hud-vs">vs</span>
+        <div class="hud-player o" id="badgeO">
+          <span class="hud-mark" id="markO">O</span>
+          <span class="hud-name" id="nameO">Friend</span>
         </div>
       </div>
-      <div class="player-badge o" id="badgeO">
-        <div class="mark" id="markO">O</div>
-        <div class="info">
-          <div class="name" id="nameO">Friend</div>
-          <div class="role" id="roleO">Player 2</div>
-        </div>
+      <div class="hud-actions">
+        <button class="hud-icon-btn" id="micToggleBtn" title="Toggle mic">🎙️</button>
+        <button class="hud-icon-btn" id="speakerToggleBtn" title="Toggle friend's audio">🔊</button>
+        <button class="hud-icon-btn" id="chatToggle" title="Chat">
+          💬
+          <span class="hud-badge" id="chatBadge">0</span>
+        </button>
       </div>
     </div>
-
-    <div class="voice-row" id="voiceRow" hidden>
-      <button class="voice-btn" id="micToggleBtn" title="Toggle mic">🎙️</button>
-      <button class="voice-btn" id="speakerToggleBtn" title="Toggle friend's audio">🔊</button>
-    </div>
+    <span id="roleX" hidden></span><span id="roleO" hidden></span>
 
     <div class="captured-row" id="capturedRow" hidden>
       <span id="capturedTop">&nbsp;</span>
@@ -119,10 +120,6 @@
     </div>
 
     <div class="chat-scrim" id="chatScrim"></div>
-    <div class="chat-toggle" id="chatToggle">
-      <div class="left">💬 Chat <span class="badge" id="chatBadge">0</span></div>
-      <span class="chevron">▾</span>
-    </div>
     <div class="chat-panel" id="chatPanel">
       <div class="chat-panel-handle"><span></span></div>
       <div class="chat-messages" id="chatMessages">
