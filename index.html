@@ -11,9 +11,9 @@
 <script src="https://unpkg.com/chess.js@1.0.0-beta.8/dist/chess.min.js"></script>
 
 <!-- Styles: theme.css has all shared/base styles, each game adds its own -->
-<link rel="stylesheet" href="/css/theme.css" />
-<link rel="stylesheet" href="/css/ttt.css" />
-<link rel="stylesheet" href="/css/chess.css" />
+<link rel="stylesheet" href="css/theme.css" />
+<link rel="stylesheet" href="css/ttt.css" />
+<link rel="stylesheet" href="css/chess.css" />
 </head>
 <body>
 
@@ -23,11 +23,6 @@
     <h1><span class="x">X</span>/<span class="o">O</span> &amp; Chess</h1>
     <div class="brand-right">
       <button class="sound-toggle" id="soundToggle" title="Toggle sound">🔊</button>
-      <!-- Top chat button for mobile-first UX -->
-      <button class="chat-toggle-top" id="chatToggleTop" title="Open chat">💬 <span class="chat-badge-top" id="chatBadgeTop">0</span></button>
-      <!-- Voice controls: start/stop call and mute/unmute -->
-      <button class="voice-toggle" id="voiceToggle" title="Start voice">🎙️</button>
-      <button class="voice-mute" id="voiceMute" title="Mute mic">🔇</button>
       <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Offline</span></div>
     </div>
   </div>
