@@ -250,37 +250,86 @@ input[type="text"]::placeholder { text-transform: none; letter-spacing: normal; 
 .share-row { display: flex; gap: 8px; width: 100%; }
 
 /* ---- Game (shared chrome) ---- */
-#game { gap: 16px; }
+#game { gap: 12px; }
 
-.players-row { display: flex; justify-content: space-between; gap: 10px; }
-.player-badge {
-  flex: 1;
+/* ---- HUD bar: compact single-row header for players + mic/speaker/chat ---- */
+.hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   background: var(--bg-raised);
   border: 1.5px solid var(--line);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 8px 10px;
+}
+.hud-players { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.hud-player {
   display: flex;
   align-items: center;
-  gap: 10px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  gap: 6px;
   min-width: 0;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.player-badge .mark {
+.hud-player .hud-mark {
   font-family: Georgia, serif;
   font-weight: 700;
-  font-size: 20px;
-  width: 30px; height: 30px;
+  font-size: 14px;
+  width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 8px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
-.player-badge.x .mark { color: var(--x-color); background: rgba(76,211,255,0.12); }
-.player-badge.o .mark { color: var(--o-color); background: rgba(255,107,107,0.12); }
-.player-badge .info { min-width: 0; }
-.player-badge .name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.player-badge .role { font-size: 11px; color: var(--text-dim); }
-.player-badge.active.x { border-color: var(--x-color); box-shadow: 0 0 0 3px var(--x-glow); }
-.player-badge.active.o { border-color: var(--o-color); box-shadow: 0 0 0 3px var(--o-glow); }
+.hud-player.x .hud-mark { color: var(--x-color); background: rgba(76,211,255,0.12); }
+.hud-player.o .hud-mark { color: var(--o-color); background: rgba(255,107,107,0.12); }
+.hud-player .hud-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 64px; }
+.hud-player.active.x { border-color: var(--x-color); box-shadow: 0 0 0 2px var(--x-glow); }
+.hud-player.active.o { border-color: var(--o-color); box-shadow: 0 0 0 2px var(--o-glow); }
+.hud-vs { font-size: 10px; color: var(--text-dim); font-weight: 700; flex-shrink: 0; }
+
+.hud-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.hud-icon-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  opacity: 0.6;
+}
+.hud-icon-btn:disabled { opacity: 0.3; cursor: default; }
+.hud-icon-btn.active { opacity: 1; border-color: var(--win); box-shadow: 0 0 0 2px rgba(107,255,176,0.15); }
+.hud-icon-btn.muted-icon { border-color: var(--o-color); opacity: 1; }
+.hud-icon-btn:active:not(:disabled) { transform: scale(0.9); }
+.hud-icon-btn.open { border-color: var(--x-color); opacity: 1; }
+
+.hud-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--amber);
+  color: #241704;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 100px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+.hud-badge.show { display: flex; }
 
 .turn-banner { text-align: center; font-size: 14px; font-weight: 600; color: var(--text-dim); min-height: 20px; }
 .turn-banner strong.x { color: var(--x-color); }
@@ -310,48 +359,9 @@ input[type="text"]::placeholder { text-transform: none; letter-spacing: normal; 
 .footer-note { text-align: center; font-size: 11px; color: var(--text-dim); margin-top: auto; padding-top: 24px; line-height: 1.6; }
 
 /* ---- Chat ----
-   Mobile-first bottom sheet: the toggle is pinned to the bottom of the
-   viewport so it's always reachable with a thumb, and the panel slides
-   up over the game content instead of pushing it down the page. */
-.chat-toggle {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg-raised);
-  border-top: 1px solid var(--line);
-  padding: 14px max(16px, env(safe-area-inset-left)) calc(14px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-right));
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-}
-.chat-toggle .left { display: flex; align-items: center; gap: 8px; }
-.chat-toggle .badge {
-  background: var(--amber);
-  color: #241704;
-  font-size: 11px;
-  font-weight: 800;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 100px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 5px;
-}
-.chat-toggle .badge.show { display: flex; }
-.chat-toggle .chevron { color: var(--text-dim); transition: transform 0.2s ease; font-size: 11px; }
-.chat-toggle.open .chevron { transform: rotate(180deg); }
-
-/* Reserve space at the bottom of the game screen so the fixed toggle
-   never covers the rematch/leave buttons. */
-#game { padding-bottom: 64px; }
+   Trigger lives in the HUD bar as a small icon button (see .hud-icon-btn);
+   the panel itself still opens as a mobile-first bottom sheet so it doesn't
+   push game content around when opened. */
 
 .chat-panel {
   position: fixed;
@@ -374,8 +384,6 @@ input[type="text"]::placeholder { text-transform: none; letter-spacing: normal; 
 }
 .chat-panel.open { display: flex; transform: translateY(0); }
 
-/* Dim the game behind the sheet while it's open */
-.chat-panel.open::before { content: none; }
 .chat-scrim {
   position: fixed;
   inset: 0;
@@ -426,24 +434,6 @@ input[type="text"]::placeholder { text-transform: none; letter-spacing: normal; 
   -webkit-tap-highlight-color: transparent;
 }
 .chat-tab.tab-active { color: var(--x-color); border-bottom-color: var(--x-color); }
-
-/* ---- Voice chat (mic / speaker) ---- */
-.voice-row { display: flex; justify-content: center; gap: 12px; margin: -6px 0 4px; }
-.voice-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 100px;
-  border: 1px solid var(--line);
-  background: var(--bg-raised);
-  font-size: 18px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: all 0.15s ease;
-  opacity: 0.55;
-}
-.voice-btn.active { opacity: 1; border-color: var(--win); box-shadow: 0 0 0 3px rgba(107,255,176,0.15); }
-.voice-btn.muted-icon { border-color: var(--o-color); }
-.voice-btn:active { transform: scale(0.92); }
 
 .chat-input-row { display: flex; gap: 8px; padding: 0 14px 14px; }
 .chat-input-row input[type="text"] { text-transform: none; letter-spacing: normal; font-family: inherit; font-size: 14px; padding: 11px 14px; }
