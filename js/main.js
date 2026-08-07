@@ -12,6 +12,7 @@ import { UI } from './core/ui.js';
 import { Net } from './core/network.js';
 import { Chat } from './core/chat.js';
 import { Audio } from './core/audio.js';
+import { Voice } from './core/voice.js';
 import { GameRegistry } from './core/gameRegistry.js';
 
 // Import + self-register every available game here. Adding a new game is
@@ -133,6 +134,7 @@ import './games/chess/chess.js';
     if (activeGame && activeGame.lockInput) activeGame.lockInput(true);
     else if (activeGame) $(activeGame.boardElementId).classList.add('disabled');
     UI.setStatus('', 'Disconnected');
+    Audio.stopBgMusic();
   });
 
   function enterGame() {
@@ -142,6 +144,7 @@ import './games/chess/chess.js';
     Chat.reset();
     activeGame.reset();
     Audio.play('connect');
+    Audio.playBgMusic();
   }
 
   function leaveGame() {
@@ -151,6 +154,7 @@ import './games/chess/chess.js';
     UI.setStatus('', 'Offline');
     Chat.reset();
     UI.showScreen('picker');
+    Audio.stopBgMusic();
   }
 
   $('hostBtn').addEventListener('click', createRoom);
@@ -290,6 +294,7 @@ import './games/chess/chess.js';
   // ---------------------------------------------------------------
   GameRegistry.listGames().forEach(g => g.init());
   Chat.init();
+  Voice.init();
   renderGamePicker();
 
   const params = new URLSearchParams(location.search);
