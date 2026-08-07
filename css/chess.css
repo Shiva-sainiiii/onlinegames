@@ -1,0 +1,75 @@
+/* ==========================================================================
+   CHESS.CSS — chessboard styles only
+   ========================================================================== */
+
+:root{
+  --sq-light: #1B2130;
+  --sq-dark: #12161F;
+  --sq-sel: rgba(255, 184, 76, 0.35);
+  --sq-move: rgba(107, 255, 176, 0.28);
+  --sq-check: rgba(255, 107, 107, 0.4);
+  --sq-last: rgba(76, 211, 255, 0.18);
+}
+
+.chess-wrap { width: 100%; position: relative; }
+.chess-board {
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.chess-board.flipped { transform: rotate(180deg); }
+.sq {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  font-size: 7.2vw;
+  user-select: none;
+}
+@media (min-width: 480px) { .sq { font-size: 34px; } }
+.sq.light { background: var(--sq-light); }
+.sq.dark { background: var(--sq-dark); }
+.sq .piece { display: inline-block; line-height: 1; transform: rotate(0deg); }
+.chess-board.flipped .piece { transform: rotate(180deg); }
+.sq.white-piece .piece { color: #F3F5FA; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
+.sq.black-piece .piece { color: #0A0C10; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35)); -webkit-text-stroke: 0.6px #C9CEDA; }
+.sq.selected::before { content: ''; position: absolute; inset: 0; background: var(--sq-sel); }
+.sq.last-move::before { content: ''; position: absolute; inset: 0; background: var(--sq-last); }
+.sq.in-check::before { content: ''; position: absolute; inset: 0; background: var(--sq-check); }
+.sq .move-dot { position: absolute; width: 26%; height: 26%; border-radius: 50%; background: var(--sq-move); pointer-events: none; }
+.sq .capture-ring { position: absolute; inset: 6%; border-radius: 50%; border: 3px solid var(--sq-move); pointer-events: none; }
+.sq .coord { position: absolute; bottom: 2px; left: 3px; font-size: 9px; font-weight: 700; opacity: 0.35; font-family: monospace; }
+.chess-board.flipped .coord { transform: rotate(180deg); bottom: auto; top: 2px; right: 3px; left: auto; }
+
+.promo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.promo-overlay.show { display: flex; }
+.promo-card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; text-align: center; }
+.promo-card .t { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 12px; }
+.promo-options { display: flex; gap: 10px; }
+.promo-btn {
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  font-size: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.promo-btn:active { border-color: var(--x-color); }
+
+.captured-row { display: flex; justify-content: space-between; font-size: 15px; color: var(--text-dim); min-height: 18px; letter-spacing: 1px; }
