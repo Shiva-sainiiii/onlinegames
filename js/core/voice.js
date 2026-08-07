@@ -23,21 +23,22 @@ export const Voice = (() => {
   let speakerOn = true;   // am I playing the friend's audio
   let callActive = false;
 
-  let micBtn, speakerBtn, voiceRow;
+  let micBtn, speakerBtn;
 
   function setUI() {
     if (!micBtn) return;
     micBtn.classList.toggle('active', micOn);
-    micBtn.textContent = micOn ? '🎙️' : '🎙️';
     micBtn.title = micOn ? 'Mute mic' : 'Unmute mic';
     micBtn.classList.toggle('muted-icon', !micOn);
 
-    speakerBtn.classList.toggle('active', speakerOn);
     speakerBtn.textContent = speakerOn ? '🔊' : '🔈';
+    speakerBtn.classList.toggle('active', speakerOn);
     speakerBtn.title = speakerOn ? 'Mute friend' : 'Unmute friend';
     speakerBtn.classList.toggle('muted-icon', !speakerOn);
 
-    voiceRow.hidden = !Net.isConnected();
+    const connected = Net.isConnected();
+    micBtn.disabled = !connected;
+    speakerBtn.disabled = !connected;
   }
 
   async function getMic() {
@@ -139,7 +140,6 @@ export const Voice = (() => {
   }
 
   function init() {
-    voiceRow = $('voiceRow');
     micBtn = $('micToggleBtn');
     speakerBtn = $('speakerToggleBtn');
 
