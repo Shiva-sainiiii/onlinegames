@@ -46,10 +46,26 @@
 @media (min-width: 480px) { .sq { font-size: 44px; } }
 .sq.light { background: var(--sq-light); }
 .sq.dark { background: var(--sq-dark); }
-.sq .piece { display: inline-block; line-height: 1; transform: rotate(0deg); }
+/* .piece is now an <img> (staunty SVG set) rather than a text glyph, sized
+   as a fraction of the square so it scales with the board. drop-shadow
+   gives it a bit of lift off the square, similar to a real piece's cast
+   shadow, without needing a raster/3D asset. */
+.sq .piece {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45));
+  transform: rotate(0deg);
+  pointer-events: none;
+}
 .chess-board.flipped .piece { transform: rotate(180deg); }
-.sq.white-piece .piece { color: #FDFDFD; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)); }
-.sq.black-piece .piece { color: #111111; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); -webkit-text-stroke: 0.6px #333333; }
+/* Fallback glyph (only used if the CDN image fails to load) keeps the
+   original text styling so it's still legible even without the image. */
+.sq .piece.piece-fallback { width: auto; height: auto; font-size: 9.2vw; filter: none; }
+@media (min-width: 480px) { .sq .piece.piece-fallback { font-size: 44px; } }
+.sq.white-piece .piece.piece-fallback { color: #FDFDFD; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)); }
+.sq.black-piece .piece.piece-fallback { color: #111111; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); -webkit-text-stroke: 0.6px #333333; }
 .sq.selected::before { content: ''; position: absolute; inset: 0; background: var(--sq-sel); }
 .sq.last-move::before { content: ''; position: absolute; inset: 0; background: var(--sq-last); }
 .sq.in-check::before { content: ''; position: absolute; inset: 0; background: var(--sq-check); }

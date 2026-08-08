@@ -49,9 +49,19 @@ function buildDom() {
   }
 }
 
+// Piece artwork: Lichess's open-source "staunty" SVG set (AGPL, via
+// lichess-org/lila on GitHub), served through jsDelivr's GitHub CDN so it
+// loads fast and reliably without us hosting the files ourselves. Falls
+// back to the plain Unicode glyph if the image ever fails to load (e.g.
+// offline), so a piece never just disappears.
+const PIECE_CDN_BASE = 'https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/staunty/';
+
 function pieceHtml(piece) {
   if (!piece) return '';
-  return `<span class="piece">${PIECE_GLYPH[piece.type]}</span>`;
+  const code = piece.color + piece.type.toUpperCase(); // e.g. 'wN', 'bQ'
+  const glyph = PIECE_GLYPH[piece.type];
+  return `<img class="piece" src="${PIECE_CDN_BASE}${code}.svg" alt="${glyph}"
+            onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'piece piece-fallback',textContent:'${glyph}'}))" />`;
 }
 
 function render() {
