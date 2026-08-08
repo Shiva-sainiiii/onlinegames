@@ -27,11 +27,18 @@ import './games/chess/chess.js';
   const $ = (id) => document.getElementById(id);
 
   let selectedGameId = 'ttt';
-  let selectedMode = 'friendOnline'; // 'friendOnline' | 'computer' | 'localPass' (future)
+  let selectedMode = 'friendOnline'; // 'friendOnline' | 'computer' | 'localPass'
+  let selectedDifficulty = 'easy';
   let activeGame = null;             // the GameRegistry entry currently in play
   let mySymbol = null;               // 'X' (host) or 'O' (guest)
   let rematchSwapped = false;
   let roomCodeVal = '';
+
+  const MODE_INFO = {
+    friendOnline: { icon: '🌐', label: 'Play Online', sub: 'Invite a friend with a room code' },
+    computer:     { icon: '🤖', label: 'Play vs Computer', sub: 'Practice against an AI opponent' },
+    localPass:    { icon: '📱', label: 'Play with a Friend', sub: 'Pass the phone, same device' },
+  };
 
   // ---------------------------------------------------------------
   // Game picker screen
@@ -57,18 +64,108 @@ import './games/chess/chess.js';
   }
 
   $('pickerNextBtn').addEventListener('click', () => {
-    UI.showScreen('lobby');
+    renderModePicker();
+    UI.showScreen('modePicker');
   });
 
   $('backToPickerBtn').addEventListener('click', () => {
+    renderModePicker();
+    UI.showScreen('modePicker');
+  });
+
+  // ---------------------------------------------------------------
+  // Mode picker: Online / Computer / Local pass-and-play
+  // ---------------------------------------------------------------
+  function renderModePicker() {
+    const game = GameRegistry.getGame(selectedGameId);
+    const list = $('modeList');
+    list.innerHTML = '';
+    Object.keys(MODE_INFO).forEach(modeId => {
+      if (!game.supportsMode[modeId]) return; // game hasn't implemented this mode
+      const info = MODE_INFO[modeId];
+      const card = document.createElement('button');
+      card.className = 'mode-tile';
+      card.innerHTML = `
+        <div class="icon">${info.icon}</div>
+        <div>
+          <div class="label">${info.label}</div>
+          <div class="sub">${info.sub}</div>
+        </div>
+      `;
+      card.addEventListener('click', () => selectMode(modeId));
+      list.appendChild(card);
+    });
+  }
+
+  function selectMode(modeId) {
+    selectedMode = modeId;
+    if (modeId === 'friendOnline') {
+      UI.showScreen('lobby');
+    } else if (modeId === 'computer') {
+      UI.showScreen('difficultyPicker');
+    } else if (modeId === 'localPass') {
+      startLocalGame();
+    }
+  }
+
+  $('backToGamePickerBtn').addEventListener('click', () => {
     UI.showScreen('picker');
   });
+
+  // ---------------------------------------------------------------
+  // Difficulty picker (computer mode)
+  // ---------------------------------------------------------------
+  document.querySelectorAll('.mode-tile[data-difficulty]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedDifficulty = btn.dataset.difficulty;
+      startComputerGame();
+    });
+  });
+
+  $('backToModePickerBtn').addEventListener('click', () => {
+    UI.showScreen('modePicker');
+  });
+
+  // ---------------------------------------------------------------
+  // Local (offline) game starters — no Net involvement at all
+  // ---------------------------------------------------------------
+  function startComputerGame() {
+    activeGame = GameRegistry.getGame(selectedGameId);
+    const aiSymbol = 'O'; // human always plays first / X / White
+    mySymbol = 'X';
+    if (activeGame.setMode) {
+      activeGame.setMode({ mode: 'computer', difficulty: selectedDifficulty, aiSymbol });
+    }
+    enterLocalGame();
+  }
+
+  function startLocalGame() {
+    activeGame = GameRegistry.getGame(selectedGameId);
+    mySymbol = 'X';
+    if (activeGame.setMode) {
+      activeGame.setMode({ mode: 'localPass' });
+    }
+    enterLocalGame();
+  }
+
+  function enterLocalGame() {
+    UI.setStatus('', selectedMode === 'computer' ? 'vs Computer' : 'Local');
+    setupGameChrome();
+    UI.showScreen('game');
+    Chat.reset();
+    activeGame.reset();
+    Audio.play('connect');
+    Audio.playBgMusic();
+  }
 
   // ---------------------------------------------------------------
   // Lobby: host / join
   // ---------------------------------------------------------------
   function setupGameChrome() {
     activeGame = GameRegistry.getGame(selectedGameId);
+    if (selectedMode === 'friendOnline' && activeGame.setMode) {
+      activeGame.setMode({ mode: 'friendOnline' });
+    }
     GameRegistry.listGames().forEach(g => {
       // A game can optionally declare a wrapperElementId (e.g. chess's board
       // sits inside #chessWrap alongside other chess-only UI). Falls back to
@@ -80,13 +177,28 @@ import './games/chess/chess.js';
     // since not every game needs it. A future game with similar needs can either
     // reuse this element or add its own.
     $('capturedRow').hidden = (selectedGameId !== 'chess');
+    $('hudActions').hidden = (selectedMode !== 'friendOnline');
     activeGame.enter(mySymbol);
     syncNameLabels();
   }
 
   // Keeps "You" attached to whichever badge (X or O) the local player
-  // currently controls — needed because rematch can swap colors.
+  // currently controls — needed because rematch can swap colors. For
+  // computer mode we label the AI explicitly; for local pass-play we
+  // just show Player 1 / Player 2 since both sides are the same person's
+  // device.
   function syncNameLabels() {
+    if (selectedMode === 'localPass') {
+      $('nameX').textContent = 'Player 1';
+      $('nameO').textContent = 'Player 2';
+      return;
+    }
+    if (selectedMode === 'computer') {
+      const aiIsX = mySymbol === 'O';
+      $('nameX').textContent = aiIsX ? 'Computer' : 'You';
+      $('nameO').textContent = aiIsX ? 'You' : 'Computer';
+      return;
+    }
     if (mySymbol === 'X') {
       $('nameX').textContent = 'You';
       if ($('nameO').textContent === 'You') $('nameO').textContent = 'Friend';
@@ -97,6 +209,7 @@ import './games/chess/chess.js';
   }
 
   function createRoom() {
+    selectedMode = 'friendOnline';
     const gameIdChar = selectedGameId === 'chess' ? 'C' : 'T';
     mySymbol = 'X';
     UI.showScreen('hosting');
@@ -107,6 +220,7 @@ import './games/chess/chess.js';
   }
 
   function joinRoom(code) {
+    selectedMode = 'friendOnline';
     mySymbol = 'O';
     UI.setStatus('waiting', 'Connecting…');
     $('joinBtn').disabled = true;
@@ -188,7 +302,12 @@ import './games/chess/chess.js';
 
   $('rematchBtn').addEventListener('click', () => {
     if (!activeGame.isRoundOver()) return; // ignore mid-game taps
-    if (Net.getIsHost()) {
+    if (selectedMode !== 'friendOnline') {
+      // Computer / local pass-play: no network round-trip needed, just
+      // restart directly. Keep the same symbols/side each time — a "swap"
+      // only makes sense when negotiating with a remote peer.
+      activeGame.reset();
+    } else if (Net.getIsHost()) {
       triggerRematchAsHost();
     } else {
       Net.send({ type: 'rematch-request' });
@@ -300,6 +419,7 @@ import './games/chess/chess.js';
   const params = new URLSearchParams(location.search);
   const roomParam = params.get('room');
   if (roomParam) {
+    selectedMode = 'friendOnline';
     UI.showScreen('lobby');
     $('joinInput').value = roomParam.toUpperCase();
   }

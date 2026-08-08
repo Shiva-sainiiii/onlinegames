@@ -36,6 +36,43 @@
     <button class="btn btn-primary" id="pickerNextBtn">Continue</button>
   </div>
 
+  <!-- MODE PICKER: how do you want to play the chosen game -->
+  <div class="screen" id="modePicker">
+    <div class="lobby-card">
+      <h2>How do you want to play?</h2>
+      <div class="mode-grid" id="modeList"></div>
+    </div>
+    <div class="back-row">
+      <button class="btn btn-ghost" id="backToGamePickerBtn">← Change game</button>
+    </div>
+  </div>
+
+  <!-- DIFFICULTY PICKER (computer mode only) -->
+  <div class="screen" id="difficultyPicker">
+    <div class="lobby-card">
+      <h2>Choose difficulty</h2>
+      <div class="mode-grid">
+        <button class="mode-tile" data-difficulty="easy">
+          <div class="icon">🙂</div>
+          <div>
+            <div class="label">Easy</div>
+            <div class="sub">Relaxed, makes mistakes</div>
+          </div>
+        </button>
+        <button class="mode-tile" data-difficulty="hard">
+          <div class="icon">🔥</div>
+          <div>
+            <div class="label">Hard</div>
+            <div class="sub">Thinks ahead, plays to win</div>
+          </div>
+        </button>
+      </div>
+    </div>
+    <div class="back-row">
+      <button class="btn btn-ghost" id="backToModePickerBtn">← Back</button>
+    </div>
+  </div>
+
   <!-- LOBBY -->
   <div class="screen" id="lobby">
     <div class="lobby-card">
@@ -54,7 +91,7 @@
     </div>
 
     <div class="back-row">
-      <button class="btn btn-ghost" id="backToPickerBtn">← Change game</button>
+      <button class="btn btn-ghost" id="backToPickerBtn">← Change mode</button>
     </div>
   </div>
 
@@ -85,7 +122,7 @@
           <span class="hud-name" id="nameO">Friend</span>
         </div>
       </div>
-      <div class="hud-actions">
+      <div class="hud-actions" id="hudActions">
         <button class="hud-icon-btn" id="micToggleBtn" title="Toggle mic">🎙️</button>
         <button class="hud-icon-btn" id="speakerToggleBtn" title="Toggle friend's audio">🔊</button>
         <button class="hud-icon-btn" id="chatToggle" title="Chat">

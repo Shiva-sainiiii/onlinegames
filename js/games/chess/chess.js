@@ -8,6 +8,7 @@
 import { GameRegistry } from '../../core/gameRegistry.js';
 import { Net } from '../../core/network.js';
 import { Audio } from '../../core/audio.js';
+import { ChessAI } from './chessAI.js';
 
 const $ = (id) => document.getElementById(id);
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -20,6 +21,10 @@ let legalTargets = [];
 let inputLocked = false;
 let lastMoveSquares = [];
 let over = false;
+
+let mode = 'friendOnline'; // 'friendOnline' | 'computer' | 'localPass'
+let aiColor = 'b';         // 'w' | 'b' — which side the AI plays in computer mode
+let aiDifficulty = 'easy';
 
 let onResultCallback = null;
 
@@ -55,7 +60,8 @@ function pieceHtml(piece) {
 function render() {
   if (!chessGame) return;
   const boardEl = $('chessBoard');
-  boardEl.classList.toggle('flipped', mySymbol === 'O');
+  const flip = mode === 'localPass' ? (chessGame.turn() === 'b') : (mySymbol === 'O');
+  boardEl.classList.toggle('flipped', flip);
 
   const boardState = chessGame.board();
   let checkSquare = null;
@@ -109,10 +115,14 @@ function updateCapturedRow() {
       (m.color === 'w' ? byWhite : byBlack).push(glyph);
     }
   });
-  const mine = mySymbol === 'X' ? byWhite : byBlack;
-  const theirs = mySymbol === 'X' ? byBlack : byWhite;
-  $('capturedTop').textContent = theirs.join(' ') || '\u00A0';
-  $('capturedBottom').textContent = mine.join(' ') || '\u00A0';
+  // For online/computer, "mine" tracks mySymbol. For local pass-play the
+  // board flips each turn, so "bottom" should always be whoever's turn it
+  // currently is (same convention as the flip itself).
+  const bottomIsWhite = mode === 'localPass' ? (chessGame.turn() === 'w') : (mySymbol === 'X');
+  const bottom = bottomIsWhite ? byWhite : byBlack;
+  const top = bottomIsWhite ? byBlack : byWhite;
+  $('capturedTop').textContent = top.join(' ') || '\u00A0';
+  $('capturedBottom').textContent = bottom.join(' ') || '\u00A0';
 }
 
 function updateTurnBanner() {
@@ -120,11 +130,21 @@ function updateTurnBanner() {
   if (over) return;
   banner.classList.remove('check');
   const turnColor = chessGame.turn();
-  const myTurn = turnColor === myColor();
   const inCheck = chessGame.inCheck && chessGame.inCheck();
   if (inCheck) banner.classList.add('check');
-  if (myTurn) banner.innerHTML = `<strong class="${mySymbol.toLowerCase()}">Your move${inCheck ? ' — Check!' : ''}</strong>`;
-  else banner.innerHTML = `Waiting for friend's move…`;
+
+  if (mode === 'localPass') {
+    const label = turnColor === 'w' ? 'White' : 'Black';
+    banner.innerHTML = `<strong class="${turnColor === 'w' ? 'x' : 'o'}">${label}'s move${inCheck ? ' — Check!' : ''}</strong>`;
+  } else if (mode === 'computer') {
+    banner.innerHTML = (turnColor === aiColor)
+      ? `Computer is thinking…`
+      : `<strong class="${mySymbol.toLowerCase()}">Your move${inCheck ? ' — Check!' : ''}</strong>`;
+  } else {
+    const myTurn = turnColor === myColor();
+    if (myTurn) banner.innerHTML = `<strong class="${mySymbol.toLowerCase()}">Your move${inCheck ? ' — Check!' : ''}</strong>`;
+    else banner.innerHTML = `Waiting for friend's move…`;
+  }
 }
 
 function updateActiveBadges(turnSymbol) {
@@ -147,7 +167,8 @@ function resultIfOver() {
 
 function onSquareClick(id) {
   if (over || inputLocked) return;
-  if (chessGame.turn() !== myColor()) return;
+  if (mode === 'computer' && chessGame.turn() === aiColor) return; // AI's turn
+  if (mode === 'friendOnline' && chessGame.turn() !== myColor()) return;
 
   if (selected) {
     const legal = legalTargets.find(m => m.to === id);
@@ -155,7 +176,8 @@ function onSquareClick(id) {
   }
 
   const piece = chessGame.get(id);
-  if (piece && piece.color === myColor()) {
+  const clickableColor = mode === 'localPass' ? chessGame.turn() : myColor();
+  if (piece && piece.color === clickableColor) {
     selected = id;
     legalTargets = chessGame.moves({ square: id, verbose: true });
   } else {
@@ -170,11 +192,11 @@ function playMove(from, to, legalMoveObj) {
   if (needsPromotion) {
     showPromoPicker((promo) => {
       commitMove(from, to, promo);
-      Net.send({ type: 'move', from, to, promotion: promo });
+      if (mode === 'friendOnline') Net.send({ type: 'move', from, to, promotion: promo });
     });
   } else {
     commitMove(from, to, undefined);
-    Net.send({ type: 'move', from, to, promotion: undefined });
+    if (mode === 'friendOnline') Net.send({ type: 'move', from, to, promotion: undefined });
   }
 }
 
@@ -196,7 +218,21 @@ function commitMove(from, to, promotion) {
     render();
     updateTurnBanner();
     updateActiveBadges(chessGame.turn() === 'w' ? 'X' : 'O');
+    if (mode === 'computer' && chessGame.turn() === aiColor) scheduleAiMove();
   }
+}
+
+function scheduleAiMove() {
+  inputLocked = true;
+  // Depth-3 search can take a beat on a phone; let the render above paint
+  // ("Computer is thinking…") before we block on the search.
+  setTimeout(() => {
+    inputLocked = false;
+    if (over) return;
+    const move = ChessAI.getMove(chessGame, aiColor, aiDifficulty);
+    if (!move) return;
+    commitMove(move.from, move.to, move.promotion);
+  }, 260);
 }
 
 function finish(result) {
@@ -238,7 +274,7 @@ const chessGameDef = {
   subLabel: 'Full rules',
   boardElementId: 'chessBoard',
   wrapperElementId: 'chessWrap',
-  supportsMode: { friendOnline: true, computer: false, localPass: false },
+  supportsMode: { friendOnline: true, computer: true, localPass: true },
 
   init() {
     buildDom();
@@ -252,6 +288,15 @@ const chessGameDef = {
     $('roleO').textContent = 'Black';
   },
 
+  // opts: { mode, difficulty, aiSymbol } — aiSymbol 'X' (White) or 'O' (Black)
+  setMode(opts) {
+    mode = opts.mode;
+    aiDifficulty = opts.difficulty || 'easy';
+    const aiSym = opts.aiSymbol || 'O';
+    aiColor = aiSym === 'X' ? 'w' : 'b';
+    mySymbol = aiSym === 'X' ? 'O' : 'X';
+  },
+
   reset() {
     chessGame = new window.Chess();
     selected = null;
@@ -262,6 +307,7 @@ const chessGameDef = {
     render();
     updateTurnBanner();
     updateActiveBadges('X');
+    if (mode === 'computer' && chessGame.turn() === aiColor) scheduleAiMove();
   },
 
   applyRemoteMove(payload) {

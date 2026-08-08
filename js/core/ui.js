@@ -10,6 +10,8 @@ export const UI = (() => {
 
   const screens = {
     picker: $('picker'),
+    modePicker: $('modePicker'),
+    difficultyPicker: $('difficultyPicker'),
     lobby: $('lobby'),
     hosting: $('hosting'),
     game: $('game'),

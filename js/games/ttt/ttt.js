@@ -7,6 +7,7 @@
 import { GameRegistry } from '../../core/gameRegistry.js';
 import { Net } from '../../core/network.js';
 import { Audio } from '../../core/audio.js';
+import { TttAI } from './tttAI.js';
 
 const $ = (id) => document.getElementById(id);
 const WIN_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
@@ -15,6 +16,14 @@ let board = Array(9).fill(null);
 let turn = 'X';
 let mySymbol = 'X';
 let over = false;
+
+// Mode state: 'friendOnline' (default) | 'computer' | 'localPass'.
+// Online mode is completely unaffected by anything below — it's the
+// original behavior. The other two just skip Net.send and, for computer
+// mode, trigger an AI reply after the human's move.
+let mode = 'friendOnline';
+let aiSymbol = 'O';
+let aiDifficulty = 'easy';
 
 let onResultCallback = null; // set by main.js via setResultHandler
 
@@ -49,15 +58,24 @@ function render(winLine) {
     cell.classList.toggle('win-cell', !!(winLine && winLine.includes(i)));
     cell.innerHTML = v ? markSvg(v) : '';
   }
-  $('board').classList.toggle('disabled', over || turn !== mySymbol);
+  $('board').classList.toggle('disabled', over || inputLocked());
 }
 
 function updateTurnBanner() {
   const banner = $('turnBanner');
   if (over) return;
   banner.classList.remove('check');
-  if (turn === mySymbol) banner.innerHTML = `<strong class="${mySymbol.toLowerCase()}">Your turn</strong>`;
-  else banner.innerHTML = `Waiting for friend's move…`;
+  if (mode === 'localPass') {
+    banner.innerHTML = `<strong class="${turn.toLowerCase()}">${turn}'s turn</strong>`;
+  } else if (mode === 'computer') {
+    banner.innerHTML = (turn === aiSymbol)
+      ? `Computer is thinking…`
+      : `<strong class="${mySymbol.toLowerCase()}">Your turn</strong>`;
+  } else if (turn === mySymbol) {
+    banner.innerHTML = `<strong class="${mySymbol.toLowerCase()}">Your turn</strong>`;
+  } else {
+    banner.innerHTML = `Waiting for friend's move…`;
+  }
 }
 
 function updateActiveBadges(turnSymbol) {
@@ -75,9 +93,32 @@ function checkWinner() {
 }
 
 function onCellClick(i) {
-  if (over || board[i] || turn !== mySymbol) return;
-  applyMove(i, mySymbol);
-  Net.send({ type: 'move', idx: i, symbol: mySymbol });
+  if (over || board[i] || inputLocked()) return;
+  if (mode === 'friendOnline' && turn !== mySymbol) return;
+
+  const playedSymbol = turn; // whoever's turn it currently is plays this click
+  applyMove(i, playedSymbol);
+  if (mode === 'friendOnline') {
+    Net.send({ type: 'move', idx: i, symbol: playedSymbol });
+  } else if (mode === 'computer' && !over && turn === aiSymbol) {
+    scheduleAiMove();
+  }
+}
+
+function inputLocked() {
+  if (mode === 'computer') return turn === aiSymbol; // wait for AI's turn
+  return false; // localPass: whoever's turn it is just taps, no lock
+}
+
+function scheduleAiMove() {
+  // Tiny delay so the AI's move doesn't feel instant/robotic, and so the
+  // player's own move finishes rendering first.
+  setTimeout(() => {
+    if (over) return;
+    const idx = TttAI.getMove(board, aiSymbol, aiDifficulty);
+    if (idx === undefined || idx === null) return;
+    applyMove(idx, aiSymbol);
+  }, 380);
 }
 
 function applyMove(i, symbol) {
@@ -108,7 +149,7 @@ const tttGame = {
   icon: '⌗',
   subLabel: 'Quick & simple',
   boardElementId: 'board',
-  supportsMode: { friendOnline: true, computer: false, localPass: false },
+  supportsMode: { friendOnline: true, computer: true, localPass: true },
 
   init() {
     buildDom();
@@ -122,6 +163,15 @@ const tttGame = {
     $('roleO').textContent = 'Player 2';
   },
 
+  // Called by main.js before enter()/reset() when starting a computer or
+  // local-pass round. opts: { mode, difficulty, aiSymbol }
+  setMode(opts) {
+    mode = opts.mode;
+    aiDifficulty = opts.difficulty || 'easy';
+    aiSymbol = opts.aiSymbol || 'O';
+    mySymbol = aiSymbol === 'X' ? 'O' : 'X'; // human always the other symbol
+  },
+
   reset() {
     board = Array(9).fill(null);
     turn = 'X';
@@ -129,6 +179,7 @@ const tttGame = {
     render();
     updateTurnBanner();
     updateActiveBadges(turn);
+    if (mode === 'computer' && turn === aiSymbol) scheduleAiMove();
   },
 
   applyRemoteMove(payload) {
