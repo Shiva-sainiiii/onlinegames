@@ -43,12 +43,6 @@ function buildDom() {
       const id = squareId(f, r);
       sq.className = 'sq ' + (((r + f) % 2 === 0) ? 'light' : 'dark');
       sq.dataset.sq = id;
-      if (f === 0) {
-        const coord = document.createElement('span');
-        coord.className = 'coord';
-        coord.textContent = id;
-        sq.appendChild(coord);
-      }
       sq.addEventListener('click', () => onSquareClick(id));
       boardEl.appendChild(sq);
     }
@@ -84,9 +78,7 @@ function render() {
     const rankIdx = 8 - parseInt(id[1], 10);
     const piece = boardState[rankIdx][fileIdx];
 
-    const coordEl = sqEl.querySelector('.coord');
     sqEl.innerHTML = '';
-    if (coordEl) sqEl.appendChild(coordEl);
 
     sqEl.classList.remove('white-piece', 'black-piece');
     if (piece) {
