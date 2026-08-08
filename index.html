@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>Play with Friends — Tic Tac Toe & Chess</title>
 <meta name="description" content="Peer-to-peer Tic Tac Toe and Chess. No signup, no server. Share a code, play instantly." />
+<meta name="author" content="Shiva Saini" />
 
 <!-- Third-party libraries -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="https://unpkg.com/chess.js@1.0.0-beta.8/dist/chess.min.js"></script>
+<!-- chess.js is imported as an ES module directly inside js/games/chess/chess.js
+     (v1.x has no browser-global/UMD build, so it can't be loaded as a plain script). -->
 
 <!-- Styles: theme.css has all shared/base styles, each game adds its own -->
 <link rel="stylesheet" href="css/theme.css" />
@@ -174,7 +176,10 @@
     </div>
   </div>
 
-  <div class="footer-note">Peer-to-peer via WebRTC · no account, no data stored</div>
+  <div class="footer-note">
+    Peer-to-peer via WebRTC · no account, no data stored<br />
+    Made by Shiva Saini
+  </div>
 </div>
 
 <div class="promo-overlay" id="promoOverlay">

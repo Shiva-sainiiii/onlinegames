@@ -1,6 +1,8 @@
 /* ==========================================================================
-   CHESS.JS — Chess game module (rules via chess.js library, loaded globally
-   as window.Chess by index.html)
+   CHESS.JS — Chess game module (rules via the chess.js library, imported
+   as a proper ES module from esm.sh — v1.x of chess.js is ESM-only and
+   does not ship a window-global UMD build, so a plain <script> tag alone
+   cannot provide it)
    Implements the GameRegistry plugin interface. See gameRegistry.js for
    the contract every game module follows.
    ========================================================================== */
@@ -9,6 +11,7 @@ import { GameRegistry } from '../../core/gameRegistry.js';
 import { Net } from '../../core/network.js';
 import { Audio } from '../../core/audio.js';
 import { ChessAI } from './chessAI.js';
+import { Chess } from 'https://esm.sh/chess.js@1.0.0-beta.8';
 
 const $ = (id) => document.getElementById(id);
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -298,7 +301,7 @@ const chessGameDef = {
   },
 
   reset() {
-    chessGame = new window.Chess();
+    chessGame = new Chess();
     selected = null;
     legalTargets = [];
     inputLocked = false;
