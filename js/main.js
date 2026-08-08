@@ -50,8 +50,14 @@ import './games/chess/chess.js';
       const tile = document.createElement('div');
       tile.className = 'game-tile' + (g.id === selectedGameId ? ' selected' : '');
       tile.dataset.game = g.id;
+      // Square thumbnail at assets/thumb-<id>.png. If it hasn't been
+      // uploaded yet (or fails to load for any reason), fall back to the
+      // emoji icon so the tile never shows a broken-image glyph.
       tile.innerHTML = `
-        <div class="icon">${g.icon}</div>
+        <div class="thumb">
+          <img src="assets/thumb-${g.id}.png" alt="${g.label}"
+               onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'thumb-fallback', textContent:'${g.icon}'}))" />
+        </div>
         <div class="label">${g.label}</div>
         <div class="sub">${g.subLabel}</div>
       `;
